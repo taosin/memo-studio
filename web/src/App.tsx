@@ -1,6 +1,6 @@
 import React from 'react';
 import AppLayout from './components/Layout';
-// import './styles/global.scss';
+import './styles/global.scss';
 
 const App: React.FC = () => {
   return <AppLayout />;

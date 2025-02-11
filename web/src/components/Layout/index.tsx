@@ -20,7 +20,7 @@ const AppLayout: React.FC = () => {
 			<Layout>
 				<Content className={styles.content}>
 					<div className={styles.editorContainer}>
-						<NoteEditor />
+						{/*<NoteEditor />*/}
 					</div>
 					<div className={styles.notesContainer}>
 						<NoteList />

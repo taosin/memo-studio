@@ -1,11 +1,29 @@
 {
   "compilerOptions": {
-    "jsx": "react-jsx", // 如果您使用 React
-    // 其他选项...
+    "jsx": "preserve",
     "typeRoots": [
       "./node_modules/@types",
-      "./src" // 确保 src 目录包含项目的类型声明
+      "./src"
     ],
-    "allowSyntheticDefaultImports": true
-  }
+    "allowSyntheticDefaultImports": true,
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": [
+    "src"
+  ]
 }

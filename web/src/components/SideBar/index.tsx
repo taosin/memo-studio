@@ -7,6 +7,11 @@ import styles from './Sidebar.module.scss';
 const Sidebar: React.FC = () => {
 	return (
 		<div className={styles.sidebarContent}>
+			{/* 日历区域 */}
+			<div className={styles.calendarSection}>
+				<h3>日历</h3>
+				<Calendar fullscreen={false} />
+			</div>
 			{/* 标签区域 */}
 			<div className={styles.tagsSection}>
 				<h3>
@@ -19,11 +24,6 @@ const Sidebar: React.FC = () => {
 				</div>
 			</div>
 
-			{/* 日历区域 */}
-			<div className={styles.calendarSection}>
-				<h3>日历</h3>
-				<Calendar fullscreen={false} />
-			</div>
 		</div>
 	);
 };
