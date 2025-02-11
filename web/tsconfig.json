@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx", // 如果您使用 React
+    // 其他选项...
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src" // 确保 src 目录包含项目的类型声明
+    ],
+    "allowSyntheticDefaultImports": true
+  }
+}

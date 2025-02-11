@@ -1,0 +1,22 @@
+.layout {
+  min-height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid #e8e8e8;
+}
+
+.content {
+  padding: 24px;
+}
+
+.editorContainer {
+  margin-bottom: 24px;
+}
+
+.notesContainer {
+  background: #fff;
+  padding: 16px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
