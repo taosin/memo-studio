@@ -1,9 +1,8 @@
 import React from 'react';
 import { Layout } from 'antd';
-import Sidebar from '../SideBar';
+import Sidebar from '../Sidebar';
 import NoteEditor from '../NoteEditor';
 import NoteList from '../NoteList';
-// @ts-ignore
 import styles from './Layout.module.scss';
 
 const { Sider, Content } = Layout;
@@ -20,7 +19,7 @@ const AppLayout: React.FC = () => {
 			<Layout>
 				<Content className={styles.content}>
 					<div className={styles.editorContainer}>
-						{/*<NoteEditor />*/}
+						<NoteEditor />
 					</div>
 					<div className={styles.notesContainer}>
 						<NoteList />

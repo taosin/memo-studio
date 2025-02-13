@@ -1,3 +1,5 @@
-.notesList {
-  margin-top: 24px;
+.noteList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
