@@ -3,6 +3,7 @@ import { Calendar, Tag } from 'antd';
 import { TagsOutlined } from '@ant-design/icons';
 // @ts-ignore
 import styles from './Sidebar.module.scss';
+import TagTree from './TagTree';
 
 const Sidebar: React.FC = () => {
 	return (
@@ -18,9 +19,7 @@ const Sidebar: React.FC = () => {
 					<TagsOutlined /> 标签
 				</h3>
 				<div>
-					<Tag color="magenta">工作</Tag>
-					<Tag color="volcano">学习</Tag>
-					<Tag color="orange">生活</Tag>
+					<TagTree />
 				</div>
 			</div>
 
