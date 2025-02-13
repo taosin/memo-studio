@@ -1,19 +1,23 @@
 import React from 'react';
-import { Card } from 'antd';
+import { Card, Button } from 'antd';
 import styles from './NoteCard.module.scss';
 
 interface NoteCardProps {
 	title: string;
 	content: string;
 	date: string;
+	onDelete: () => void;
 }
 
-const NoteCard: React.FC<NoteCardProps> = ({ title, content, date }) => {
+const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) => {
 	return (
 		<Card className={styles.noteCard} hoverable>
 			<h3>{title}</h3>
 			<p>{content}</p>
-			<small>{date}</small>
+			<small>{new Date(date).toLocaleString()}</small>
+			<Button type="link" danger onClick={onDelete}>
+				删除
+			</Button>
 		</Card>
 	);
 };
