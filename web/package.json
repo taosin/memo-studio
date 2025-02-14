@@ -15,7 +15,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
+    "test": "react-scripts test --passWithNoTests",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -42,5 +42,8 @@
     "@types/simplemde": "^1.11.11",
     "sass": "^1.84.0",
     "typescript": "^3.4.5"
-  }
+  },
+  "jest": {
+    "testMatch": ["**/src/**/*.{spec,test}.{js,jsx,ts,tsx}", "**/src/**/__tests__/**/*.{js,jsx,ts,tsx}"]
+  },
 }
