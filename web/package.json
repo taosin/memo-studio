@@ -44,6 +44,9 @@
     "typescript": "^3.4.5"
   },
   "jest": {
-    "testMatch": ["**/src/**/*.{spec,test}.{js,jsx,ts,tsx}", "**/src/**/__tests__/**/*.{js,jsx,ts,tsx}"]
-  },
+    "testMatch": [
+      "**/src/**/*.{spec,test}.{js,jsx,ts,tsx}",
+      "**/src/**/__tests__/**/*.{js,jsx,ts,tsx}"
+    ]
+  }
 }
