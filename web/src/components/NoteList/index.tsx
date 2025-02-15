@@ -3,6 +3,7 @@ import NoteCard from '../NoteCard';
 import { fetchNotes, deleteNote, searchNotes } from '../../utils/api';
 import styles from './NoteList.module.scss';
 import SearchBar from "../SearchBar";
+import NoteEditor from "../NoteEditor";
 
 interface Note {
 	id: number;
@@ -32,9 +33,16 @@ const NoteList: React.FC = () => {
 		setNotes(data);
 	};
 
+	// 加载笔记列表
+	const loadNotes = async () => {
+		const data = await fetchNotes();
+		setNotes(data);
+	};
+
 	return (
 		<div className={styles.noteList}>
 			<SearchBar onSearch={handleSearch} />
+			<NoteEditor onSave={loadNotes} />
 			{notes.map((note) => (
 				<NoteCard
 					key={note.id}

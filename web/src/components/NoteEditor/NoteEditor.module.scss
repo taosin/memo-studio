@@ -1,10 +1,16 @@
 .editor {
-  .editor-toolbar {
-    border-radius: 4px 4px 0 0;
-  }
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+}
 
-  .CodeMirror {
-    border-radius: 0 0 4px 4px;
-    min-height: 200px;
-  }
+.titleInput {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.textarea {
+  width: 100%;
+  resize: vertical; // 允许垂直调整大小
 }
