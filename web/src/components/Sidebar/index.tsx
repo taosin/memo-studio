@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Tag } from 'antd';
+import { Calendar } from 'antd';
 import { FormattedMessage } from 'react-intl';
 import { TagsOutlined } from '@ant-design/icons';
 // @ts-ignore
