@@ -32,4 +32,18 @@ router.delete('/:id', (req, res) => {
   });
 });
 
+// 搜索笔记
+router.get('/search', (req, res) => {
+  const { keyword } = req.query;
+  if (!keyword) {
+    return res.status(400).json({ error: '搜索关键词不能为空' });
+  }
+
+  Notes.search(keyword, (err, notes) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(notes);
+  });
+});
+
+
 module.exports = router;

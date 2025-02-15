@@ -23,6 +23,15 @@ class Note {
   static delete(id, callback) {
     db.run('DELETE FROM notes WHERE id = ?', [id], callback);
   }
+
+  // 搜索笔记
+  static search(keyword, callback) {
+    db.all(
+      'SELECT * FROM notes WHERE title LIKE ? OR content LIKE ? ORDER BY created_at DESC',
+      [`%${keyword}%`, `%${keyword}%`],
+      callback
+    );
+  }
 }
 
 module.exports = Note;

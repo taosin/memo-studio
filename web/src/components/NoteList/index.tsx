@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import NoteCard from '../NoteCard';
-import { fetchNotes, deleteNote } from '../../utils/api';
+import { fetchNotes, deleteNote, searchNotes } from '../../utils/api';
 import styles from './NoteList.module.scss';
+import SearchBar from "../SearchBar";
 
 interface Note {
 	id: number;
@@ -26,8 +27,14 @@ const NoteList: React.FC = () => {
 		setNotes(notes.filter((note) => note.id !== id));
 	};
 
+	const handleSearch = async (keyword: string) => {
+		const data = await searchNotes(keyword);
+		setNotes(data);
+	};
+
 	return (
 		<div className={styles.noteList}>
+			<SearchBar onSearch={handleSearch} />
 			{notes.map((note) => (
 				<NoteCard
 					key={note.id}

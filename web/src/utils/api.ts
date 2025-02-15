@@ -16,3 +16,15 @@ export const deleteNote = async (id: number) => {
 	const response = await axios.delete(`${API_BASE_URL}/${id}`);
 	return response.data;
 };
+
+
+/**
+ * search notes
+ * @param keyword
+ */
+export const searchNotes = async (keyword: string) => {
+	const response = await axios.get(`${API_BASE_URL}/search`, {
+		params: { keyword },
+	});
+	return response.data;
+};
