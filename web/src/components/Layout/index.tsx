@@ -11,7 +11,7 @@ const AppLayout: React.FC = () => {
 	return (
 		<Layout className={styles.layout}>
 			{/* 左侧边栏 */}
-			<Sider width={320} theme="light" className={styles.sidebar}>
+			<Sider width={250} theme="light" className={styles.sidebar}>
 				<Sidebar />
 			</Sider>
 

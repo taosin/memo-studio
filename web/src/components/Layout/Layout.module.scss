@@ -1,5 +1,6 @@
 .layout {
   min-height: 100vh;
+  display: flex;
 }
 
 .sidebar {
@@ -8,6 +9,7 @@
 
 .content {
   padding: 24px;
+  flex: 1;
 }
 
 .editorContainer {
