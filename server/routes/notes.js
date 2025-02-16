@@ -13,13 +13,13 @@ router.get('/', (req, res) => {
 // 创建笔记
 router.post('/', (req, res) => {
   const { title, content } = req.body;
-  if (!title || !content) {
-    return res.status(400).json({ error: '标题和内容不能为空' });
+  if (!content) {
+    return res.status(400).json({ error: '标题不能为空' });
   }
 
   Notes.create(title, content, (err, id) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id, title, content });
+    res.json({ id, title: title, content });
   });
 });
 
