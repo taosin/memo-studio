@@ -23,6 +23,9 @@ importers:
       react:
         specifier: ^19.0.0
         version: 19.0.0
+      react-calendar-heatmap:
+        specifier: ^1.9.0
+        version: 1.9.0(react@19.0.0)
       react-dom:
         specifier: ^19.0.0
         version: 19.0.0(react@19.0.0)
@@ -32,6 +35,9 @@ importers:
       react-scripts:
         specifier: ^3.0.1
         version: 3.4.4(eslint@6.8.0)(react@19.0.0)(sass@1.85.0)(typescript@3.9.10)
+      sass:
+        specifier: ^1.85.0
+        version: 1.85.0
       simplemde:
         specifier: ^1.11.2
         version: 1.11.2
@@ -45,9 +51,6 @@ importers:
       '@types/simplemde':
         specifier: ^1.11.11
         version: 1.11.11
-      sass:
-        specifier: ^1.85.0
-        version: 1.85.0
       typescript:
         specifier: ^3.4.5
         version: 3.9.10
@@ -3987,7 +3990,7 @@ packages:
     engines: {node: '>= 0.6.0'}
 
   loose-envify@1.4.0:
-    resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
+    resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==, tarball: https://registry.npmmirror.com/loose-envify/-/loose-envify-1.4.0.tgz}
     hasBin: true
 
   lower-case@2.0.2:
@@ -4039,6 +4042,9 @@ packages:
   media-typer@0.3.0:
     resolution: {integrity: sha512-dq+qelQ9akHpcOl/gUVRTxVIOkAJ1wR3QAvb4RsVjS8oVoFjDGTc679wJYmUmknUF5HwMLOgb5O+a3KxfWapPQ==}
     engines: {node: '>= 0.6'}
+
+  memoize-one@5.2.1:
+    resolution: {integrity: sha512-zYiwtZUcYyXKo/np96AGZAckk+FWWsUdJ3cHGGmld7+AhvcWmQyGCYUh1hc4Q/pkOhb65dQR/pqCyK0cOaHz4Q==, tarball: https://registry.npmmirror.com/memoize-one/-/memoize-one-5.2.1.tgz}
 
   memory-fs@0.4.1:
     resolution: {integrity: sha512-cda4JKCxReDXFXRqOHPQscuIYg1PvxbE2S2GP45rnwfEK+vZaXC8C1OFvdHIbgw0DLzowXGVoxLaAmlgRy14GQ==}
@@ -4274,7 +4280,7 @@ packages:
     resolution: {integrity: sha512-fexhUFFPTGV8ybAtSIGbV6gOkSv8UtRbDBnAyLQw4QPKkgNlsH2ByPGtMUqdWkos6YCRmAqViwgZrJc/mRDzZQ==}
 
   object-assign@4.1.1:
-    resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
+    resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==, tarball: https://registry.npmmirror.com/object-assign/-/object-assign-4.1.1.tgz}
     engines: {node: '>=0.10.0'}
 
   object-copy@0.1.0:
@@ -4932,7 +4938,7 @@ packages:
     engines: {node: '>= 6'}
 
   prop-types@15.8.1:
-    resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==}
+    resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==, tarball: https://registry.npmmirror.com/prop-types/-/prop-types-15.8.1.tgz}
 
   proxy-addr@2.0.7:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
@@ -5245,6 +5251,11 @@ packages:
   react-app-polyfill@1.0.6:
     resolution: {integrity: sha512-OfBnObtnGgLGfweORmdZbyEz+3dgVePQBb3zipiaDsMHV1NpWm0rDFYIVXFV/AK+x4VIIfWHhrdMIeoTLyRr2g==}
     engines: {node: '>=6'}
+
+  react-calendar-heatmap@1.9.0:
+    resolution: {integrity: sha512-mGed9any6QLOVckxwxC/eeP9s9wE8mTUW/FCE0V27xF9WOaCGuOftGSRH8DSDoSwgzMSVF6uuH7M1xvc+aZ8sg==, tarball: https://registry.npmmirror.com/react-calendar-heatmap/-/react-calendar-heatmap-1.9.0.tgz}
+    peerDependencies:
+      react: ^0.14.0 || ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0
 
   react-dev-utils@10.2.1:
     resolution: {integrity: sha512-XxTbgJnYZmxuPtY3y/UV0D8/65NKkmaia4rXzViknVnZeVlklSh8u6TnaEYPfAi/Gh1TP4mEOXHI6jQOPbeakQ==}
@@ -7800,7 +7811,9 @@ snapshots:
       source-map: 0.6.1
       string-length: 2.0.0
     transitivePeerDependencies:
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@jest/source-map@24.9.0':
     dependencies:
@@ -11298,7 +11311,9 @@ snapshots:
       pretty-format: 24.9.0
       throat: 4.1.0
     transitivePeerDependencies:
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   jest-leak-detector@24.9.0:
     dependencies:
@@ -11791,6 +11806,8 @@ snapshots:
   mdn-data@2.0.4: {}
 
   media-typer@0.3.0: {}
+
+  memoize-one@5.2.1: {}
 
   memory-fs@0.4.1:
     dependencies:
@@ -13272,6 +13289,12 @@ snapshots:
       raf: 3.4.1
       regenerator-runtime: 0.13.11
       whatwg-fetch: 3.6.20
+
+  react-calendar-heatmap@1.9.0(react@19.0.0):
+    dependencies:
+      memoize-one: 5.2.1
+      prop-types: 15.8.1
+      react: 19.0.0
 
   react-dev-utils@10.2.1(eslint@6.8.0)(typescript@3.9.10)(webpack@4.42.0):
     dependencies:
