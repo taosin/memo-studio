@@ -5,3 +5,6 @@ CREATE TABLE IF NOT EXISTS notes (
     content TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+
+-- sqlite3 db/notes.db < db/init.sql
