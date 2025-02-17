@@ -11,7 +11,7 @@ const Heatmap: React.FC = () => {
 	const endDate = currentDate.day(6); // 6 代表周六
 
 	// 计算开始日期（结束日期减去72天）
-	const startDate = endDate.subtract(84, 'day');
+	const startDate = endDate.subtract(91, 'day');
 
 	const [hoveredDate, setHoveredDate] = useState(null);
 	const [hoveredValue, setHoveredValue] = useState(null);
@@ -60,6 +60,7 @@ const Heatmap: React.FC = () => {
 					console.log('Clicked date:', value?.date);
 					console.log('Clicked count:', value?.count);
 				}}
+				showWeekdayLabels
 			/>
 			{hoveredDate && (
 				<div style={{
