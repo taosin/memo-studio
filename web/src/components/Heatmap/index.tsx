@@ -44,7 +44,6 @@ const Heatmap: React.FC = () => {
 					count: React.SetStateAction<null>;
 				}) => {
 					if (value) {
-						console.error(event)
 						setHoveredDate(value.date);
 						setHoveredValue(value.count);
 						setCurrentPosition({
