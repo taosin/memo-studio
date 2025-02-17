@@ -12,7 +12,6 @@ interface NoteCardProps {
 const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) => {
 	return (
 		<Card className={styles.noteCard} hoverable>
-			<h3>{title}</h3>
 			<p>{content}</p>
 			<small>{new Date(date).toLocaleString()}</small>
 			<Button type="link" danger onClick={onDelete}>

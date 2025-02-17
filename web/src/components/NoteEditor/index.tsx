@@ -40,13 +40,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ onSave }) => {
 	};
 
 	return (
-		<div className={styles.editor}>
-			<Input
-				placeholder="输入标题"
-				value={title}
-				onChange={(e) => setTitle(e.target.value)}
-				className={styles.titleInput}
-			/>
+		// <div className={styles.editor}>
 			<TextArea
 				placeholder="记录你的想法...（Shift + Enter 保存）"
 				value={content}
@@ -55,7 +49,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ onSave }) => {
 				autoSize={{ minRows: 4, maxRows: 8 }} // 自动调整高度
 				className={styles.textarea}
 			/>
-		</div>
+		// </div>
 	);
 };
 

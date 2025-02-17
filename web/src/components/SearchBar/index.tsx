@@ -6,16 +6,15 @@ import styles from './index.module.scss';
 const { Search } = Input;
 
 interface SearchBarProps {
-	onSearch: (notes: any[]) => void;
+	onSearch: (notes: string) => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 	const [keyword, setKeyword] = useState('');
 
 	const handleSearch = async () => {
-		if (!keyword.trim()) return;
-		const notes = await searchNotes(keyword);
-		onSearch(notes);
+		// const notes = await searchNotes(keyword);
+		onSearch(keyword);
 	};
 
 	return (

@@ -23,6 +23,7 @@ export const deleteNote = async (id: number) => {
  * @param keyword
  */
 export const searchNotes = async (keyword: string) => {
+	console.error(keyword, 'keyword')
 	const response = await axios.get(`${API_BASE_URL}/search`, {
 		params: { keyword },
 	});

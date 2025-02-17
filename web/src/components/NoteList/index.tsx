@@ -20,7 +20,7 @@ const NoteList: React.FC = () => {
 			const data = await fetchNotes();
 			setNotes(data);
 		};
-		loadNotes();
+		void loadNotes();
 	}, []);
 
 	const handleDelete = async (id: number) => {
@@ -29,8 +29,12 @@ const NoteList: React.FC = () => {
 	};
 
 	const handleSearch = async (keyword: string) => {
-		const data = await searchNotes(keyword);
-		setNotes(data);
+		if(keyword.trim()){
+			const data = await searchNotes(keyword.trim());
+			setNotes(data);
+		}else{
+			await loadNotes();
+		}
 	};
 
 	// 加载笔记列表
