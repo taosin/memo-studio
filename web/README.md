@@ -9,3 +9,7 @@ pnpm install
 ```bash
 pnpm start
 ```
+
+> Prerequisite
+* [pnpm](https://pnpm.io/)
+* [Node.js](https://nodejs.org/en)
