@@ -2,10 +2,10 @@
 
 ## install
 ```bash
-npm install
+pnpm install
 ```
 
 ## start
 ```bash
-npm start
+pnpm start
 ```
