@@ -2,10 +2,14 @@
 
 ## install
 ```bash
-npm install
+pnpm install
 ```
 
 ## start
 ```bash
-npm start
+pnpm start
 ```
+
+> Prerequisite
+* [pnpm](https://pnpm.io/)
+* [Node.js](https://nodejs.org/en)
