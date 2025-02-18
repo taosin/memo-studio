@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Input } from 'antd';
-import { searchNotes } from '../../utils/api';
 import styles from './index.module.scss';
 
 const { Search } = Input;
@@ -13,7 +12,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
 	const [keyword, setKeyword] = useState('');
 
 	const handleSearch = async () => {
-		// const notes = await searchNotes(keyword);
 		onSearch(keyword);
 	};
 
