@@ -8,7 +8,7 @@ const LanguageSwitcher: React.FC = () => {
 
 	return (
 		<div className={styles.switchLanguageContainer}>
-			<div onClick={() => setLocale( locale === 'en' ? 'zh' : 'en')}>
+			<div onClick={() => setLocale( locale === 'en' ? 'zh' : 'en')} className={styles.switchLanguageButton}>
 				{
 					locale === 'zh' ? '中文': 'English'
 				}
