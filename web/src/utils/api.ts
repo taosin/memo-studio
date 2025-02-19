@@ -29,3 +29,9 @@ export const searchNotes = async (keyword: string) => {
 	});
 	return response.data;
 };
+
+// 登录
+export const login = async (username: string, password: string) => {
+	const response = await axios.post(`${API_BASE_URL}/auth/login`, { username, password });
+	return response.data;
+};
