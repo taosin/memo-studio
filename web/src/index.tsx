@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { ConfigProvider } from 'antd';
 import { LanguageProvider } from './utils/LanguageContext';
 
 
@@ -9,12 +10,8 @@ const container = document.getElementById('root');
 const root = createRoot(container!); // 创建根
 root.render(
 	<LanguageProvider>
-		<App/>
+		<ConfigProvider theme={{ token: { colorPrimary: '#00b96b' } }}>
+			<App/>
+		</ConfigProvider>
 	</LanguageProvider>,
-); // 使用新 API 渲染组件
-// const root = ReactDOM.createRoot(document.getElementById('root'));
-// root.render(
-// 	<React.StrictMode>
-// 		<App />
-// 	</React.StrictMode>
-// );
+);
