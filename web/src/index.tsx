@@ -4,10 +4,8 @@ import App from './App';
 import { ConfigProvider } from 'antd';
 import { LanguageProvider } from './utils/LanguageContext';
 
-
-// 获取根容器
 const container = document.getElementById('root');
-const root = createRoot(container!); // 创建根
+const root = createRoot(container!);
 root.render(
 	<LanguageProvider>
 		<ConfigProvider theme={{ token: { colorPrimary: '#00b96b' } }}>
