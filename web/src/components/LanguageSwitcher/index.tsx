@@ -1,5 +1,4 @@
 import React, { useContext } from 'react';
-import { Button } from 'antd';
 import { LanguageContext } from '../../utils/LanguageContext';
 import styles from './LanguageSwitcher.module.scss';
 
