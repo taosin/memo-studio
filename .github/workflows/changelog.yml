@@ -1,0 +1,36 @@
+name: Generate Changelog  
+
+on:  
+  release:  
+    types: [published]  # 每当发布新版本时触发  
+
+jobs:  
+  changelog:  
+    runs-on: ubuntu-latest  
+
+    steps:  
+      - name: Checkout code  
+        uses: actions/checkout@v2  
+
+      - name: Set up Node.js  
+        uses: actions/setup-node@v2  
+        with:  
+          node-version: '14'  # 设置你需要的 Node.js 版本  
+
+      - name: Install dependencies  
+        run: npm install  
+
+      - name: Generate Changelog  
+        run: npx auto-changelog -p  
+        env:  
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
+
+      - name: Commit Changelog  
+        run: |  
+          git config --local user.email "action@github.com"  
+          git config --local user.name "GitHub Action"  
+          git add CHANGELOG.md  
+          git commit -m "chore: update changelog"  
+          git push  
+        env:  
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
