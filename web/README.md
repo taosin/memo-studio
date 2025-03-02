@@ -1,11 +1,13 @@
-# memo-studio
+# The web part of memo-studio
 
-## install
+## Dev
+
+### install
 ```bash
 pnpm install
 ```
 
-## start
+### start
 ```bash
 pnpm start
 ```
