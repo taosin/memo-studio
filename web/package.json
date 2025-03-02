@@ -45,6 +45,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@types/simplemde": "^1.11.11",
+    "auto-changelog": "^2.5.0",
     "sass": "^1.85.0",
     "typescript": "^3.4.5"
   },
