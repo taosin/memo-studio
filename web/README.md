@@ -1,4 +1,4 @@
-# memo-studio
+# The web part of memo-studio
 
 ## Dev
 
