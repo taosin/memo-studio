@@ -2,7 +2,7 @@ const express = require('express');
 const Notes = require('../models/Note');
 const router = express.Router();
 
-// 获取所有笔记
+// get all notes
 router.get('/', (req, res) => {
   Notes.getAll((err, notes) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -10,7 +10,7 @@ router.get('/', (req, res) => {
   });
 });
 
-// 创建笔记
+// create note
 router.post('/', (req, res) => {
   const { title, content } = req.body;
   if (!content) {
@@ -23,7 +23,7 @@ router.post('/', (req, res) => {
   });
 });
 
-// 删除笔记
+// delete note by id
 router.delete('/:id', (req, res) => {
   const { id } = req.params;
   Notes.delete(id, (err) => {
@@ -32,7 +32,7 @@ router.delete('/:id', (req, res) => {
   });
 });
 
-// 搜索笔记
+// search notes by keyword
 router.get('/search', (req, res) => {
   const { keyword } = req.query;
   if (!keyword) {
