@@ -14,7 +14,7 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const { title, content } = req.body;
   if (!content) {
-    return res.status(400).json({ error: '标题不能为空' });
+    return res.status(400).json({ error: 'title is null!' });
   }
 
   Notes.create(title, content, (err, id) => {
@@ -36,7 +36,7 @@ router.delete('/:id', (req, res) => {
 router.get('/search', (req, res) => {
   const { keyword } = req.query;
   if (!keyword) {
-    return res.status(400).json({ error: '搜索关键词不能为空' });
+    return res.status(400).json({ error: 'key is null!' });
   }
 
   Notes.search(keyword, (err, notes) => {
