@@ -16,7 +16,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) =
 
 			key: '0',
 			label: (
-				< Button type="link" danger onClick={onDelete} >
+				< Button type="link" onClick={onDelete} >
 					置顶
 				</Button >
 			),
@@ -24,7 +24,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) =
 		{
 			key: '1',
 			label: (
-				< Button type="link" danger onClick={onDelete} >
+				< Button type="link" onClick={onDelete} >
 					取消置顶
 				</Button >
 			),
@@ -32,7 +32,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) =
 		{
 			key: '2',
 			label: (
-				< Button type="link" danger onClick={onDelete} >
+				< Button type="link" onClick={onDelete} >
 					编辑
 				</Button >
 			),
