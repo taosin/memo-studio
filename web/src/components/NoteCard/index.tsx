@@ -58,7 +58,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) =
 					...
 				</a>
 			</Dropdown>}>
-			<p>{content}</p>
+			{content}
 		</Card>
 	);
 };
