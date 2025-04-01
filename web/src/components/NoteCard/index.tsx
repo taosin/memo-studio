@@ -52,16 +52,13 @@ const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) =
 	return (
 		<Card className={styles.noteCard}
 			hoverable
+			title={new Date(date).toLocaleString()}
 			extra={<Dropdown menu={{ items }}>
 				<a onClick={(e) => e.preventDefault()}>
 					...
 				</a>
 			</Dropdown>}>
 			<p>{content}</p>
-			<small>{new Date(date).toLocaleString()}</small>
-			<Button type="link" danger onClick={onDelete}>
-				删除
-			</Button>
 		</Card>
 	);
 };
