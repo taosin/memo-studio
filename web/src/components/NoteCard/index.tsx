@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Button, Dropdown, MenuProps, Space } from 'antd';
 import styles from './NoteCard.module.scss';
 import { DownOutlined, SmileOutlined } from '@ant-design/icons';
+import { FormattedMessage } from 'react-intl';
 
 interface NoteCardProps {
 	title: string;
@@ -17,7 +18,8 @@ const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) =
 			key: '0',
 			label: (
 				< Button type="link" onClick={onDelete} >
-					置顶
+					<FormattedMessage id='pin' />
+					{/* 置顶 */}
 				</Button >
 			),
 		},
@@ -25,7 +27,8 @@ const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) =
 			key: '1',
 			label: (
 				< Button type="link" onClick={onDelete} >
-					取消置顶
+					{/* 取消置顶 */}
+					<FormattedMessage id='un-pin' />
 				</Button >
 			),
 		},
@@ -33,7 +36,8 @@ const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) =
 			key: '2',
 			label: (
 				< Button type="link" onClick={onDelete} >
-					编辑
+					{/* 编辑 */}
+					<FormattedMessage id='edit' />
 				</Button >
 			),
 			icon: <SmileOutlined />,
@@ -43,7 +47,8 @@ const NoteCard: React.FC<NoteCardProps> = ({ title, content, date, onDelete }) =
 			key: '3',
 			label: (
 				< Button type="link" danger onClick={onDelete} >
-					删除
+					{/* 删除 */}
+					<FormattedMessage id='delete' />
 				</Button >
 			),
 			disabled: true,

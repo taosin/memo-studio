@@ -4,5 +4,9 @@
   "save": "Save",
   "calendar": "Calendar",
   "tags": "Tags",
-  "create": "Create"
+  "create": "Create",
+  "pin": "Pin",
+  "un-pin": "UnPin",
+  "edit": "Edit",
+  "delete": "Delete"
 }

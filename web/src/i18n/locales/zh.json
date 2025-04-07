@@ -4,5 +4,9 @@
   "save": "保存",
   "calendar": "日历",
   "tags": "标签",
-  "create": "新建"
+  "create": "新建",
+  "pin": "置顶",
+  "un-pin": "取消置顶",
+  "edit": "编辑",
+  "delete": "删除"
 }
