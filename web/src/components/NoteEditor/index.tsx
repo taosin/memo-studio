@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Input, message, Dropdown, Menu, List, Spin } from 'antd';
 import { createNote } from '../../utils/api';
 import SimpleMDE from 'simplemde';
-import 'simplemde/dist/simplemde.min.css';
 import styles from './NoteEditor.module.scss';
+import 'codemirror/addon/display/fullscreen';
+import 'codemirror/lib/codemirror.css';
+import 'codemirror/addon/display/fullscreen.css';
 
 const { TextArea } = Input;
 

@@ -1,0 +1,10 @@
+{
+  "presets": [
+    "@babel/preset-env",
+    "react-app"
+  ],
+  "plugins": [
+    "@babel/plugin-proposal-optional-chaining",
+    "@babel/plugin-proposal-private-methods"
+  ]
+}
