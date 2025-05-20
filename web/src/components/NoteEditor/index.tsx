@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Input, message, Dropdown, Menu, List, Spin } from 'antd';
+import React, { useState, useCallback } from 'react';
+import { Input, message, List, Spin, Upload, Button } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { createNote } from '../../utils/api';
-import SimpleMDE from 'simplemde';
 import styles from './NoteEditor.module.scss';
-import 'codemirror/addon/display/fullscreen';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/addon/display/fullscreen.css';
 
 const { TextArea } = Input;
 
 interface NoteEditorProps {
-	onSave: () => void; // 保存后的回调函数，用于刷新笔记列表
+	onSave: () => void;
 }
 
 interface Tag {
@@ -35,106 +34,69 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ onSave }) => {
 	const [loading, setLoading] = useState<boolean>(false);
 	const [cursorPosition, setCursorPosition] = useState<number>(0);
 
-	const editorRef = useRef<SimpleMDE | null>(null);
-	const editorElementRef = useRef<HTMLTextAreaElement | null>(null);
-
-	// 初始化 SimpleMDE 编辑器
-	useEffect(() => {
-		if (editorElementRef.current && !editorRef.current) {
-			editorRef.current = new SimpleMDE({
-				element: editorElementRef.current,
-				spellChecker: false,
-				status: false,
-				toolbar: [
-					'bold', 'italic', 'heading', '|',
-					'quote', 'unordered-list', 'ordered-list', '|',
-					'link', 'image', '|',
-					'preview', 'side-by-side', 'fullscreen', '|',
-					'guide'
-				],
-				initialValue: content,
-				autofocus: true,
-			});
-
-			// 监听编辑器内容变化
-			editorRef.current.codemirror.on('change', () => {
-				const newContent = editorRef.current?.value() || '';
-				setContent(newContent);
-
-				// 获取光标位置
-				const cursor = editorRef.current?.codemirror.getCursor();
-				if (cursor) {
-					const pos = editorRef.current?.codemirror.indexFromPos(cursor) || 0;
-					setCursorPosition(pos);
-				}
-
-				// 检查是否输入了 # 或 @
-				checkForSpecialCharacters(newContent, editorRef.current?.codemirror.indexFromPos(cursor) || 0);
-			});
-
-			// 监听光标位置变化
-			editorRef.current.codemirror.on('cursorActivity', () => {
-				const cursor = editorRef.current?.codemirror.getCursor();
-				if (cursor) {
-					const pos = editorRef.current?.codemirror.indexFromPos(cursor) || 0;
-					setCursorPosition(pos);
-
-					// 检查光标位置是否在 # 或 @ 后面
-					const text = editorRef.current?.value() || '';
-					checkForSpecialCharacters(text, pos);
-				}
-			});
+	// Quill 编辑器配置
+	const modules = {
+		toolbar: [
+			[{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+			['bold', 'italic', 'underline', 'strike'],
+			[{ 'list': 'ordered' }, { 'list': 'bullet' }],
+			['link', 'image'],
+			['clean']
+		],
+		clipboard: {
+			matchVisual: false
 		}
+	};
 
-		return () => {
-			if (editorRef.current) {
-				editorRef.current.toTextArea();
-				editorRef.current = null;
-			}
-		};
+	// 处理文件上传
+	const handleFileUpload = useCallback(async (file: File) => {
+		try {
+			// 这里应该调用实际的文件上传 API
+			const formData = new FormData();
+			formData.append('file', file);
+
+			// 模拟上传延迟
+			await new Promise(resolve => setTimeout(resolve, 1000));
+
+			// 返回文件 URL（这里使用模拟数据）
+			const fileUrl = URL.createObjectURL(file);
+			return fileUrl;
+		} catch (error) {
+			message.error('文件上传失败');
+			return null;
+		}
 	}, []);
 
-	// 当内容变化时更新编辑器
-	useEffect(() => {
-		if (editorRef.current && content !== editorRef.current.value()) {
-			editorRef.current.value(content);
-		}
-	}, [content]);
-
-	// 检查是否输入了特殊字符 (# 或 @)
-	const checkForSpecialCharacters = (text: string, cursorPos: number) => {
-		// 检查是否输入了 #
+	// 检查特殊字符
+	const checkForSpecialCharacters = useCallback((text: string, cursorPos: number) => {
 		const beforeCursor = text.substring(0, cursorPos);
-		const lastHashIndex = beforeCursor.lastIndexOf('#');
 
+		// 检查标签
+		const lastHashIndex = beforeCursor.lastIndexOf('#');
 		if (lastHashIndex !== -1 && lastHashIndex < cursorPos) {
 			const searchText = beforeCursor.substring(lastHashIndex + 1, cursorPos);
 			setTagSearchText(searchText);
 			setShowTagDropdown(true);
-			// 模拟获取标签列表
 			fetchTags(searchText);
 		} else {
 			setShowTagDropdown(false);
 		}
 
-		// 检查是否输入了 @
+		// 检查备忘录引用
 		const lastAtIndex = beforeCursor.lastIndexOf('@');
-
 		if (lastAtIndex !== -1 && lastAtIndex < cursorPos) {
 			const searchText = beforeCursor.substring(lastAtIndex + 1, cursorPos);
 			setMemoSearchText(searchText);
 			setShowMemoDropdown(true);
-			// 模拟获取备忘录列表
 			fetchMemos(searchText);
 		} else {
 			setShowMemoDropdown(false);
 		}
-	};
+	}, []);
 
-	// 模拟获取标签列表
-	const fetchTags = (searchText: string) => {
+	// 获取标签列表
+	const fetchTags = useCallback((searchText: string) => {
 		setLoading(true);
-		// 这里应该是实际的 API 调用
 		setTimeout(() => {
 			const mockTags: Tag[] = [
 				{ id: '1', name: '工作' },
@@ -147,12 +109,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ onSave }) => {
 			setTags(mockTags);
 			setLoading(false);
 		}, 300);
-	};
+	}, []);
 
-	// 模拟获取备忘录列表
-	const fetchMemos = (searchText: string) => {
+	// 获取备忘录列表
+	const fetchMemos = useCallback((searchText: string) => {
 		setLoading(true);
-		// 这里应该是实际的 API 调用
 		setTimeout(() => {
 			const mockMemos: Memo[] = [
 				{ id: '1', title: '项目计划' },
@@ -165,41 +126,45 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ onSave }) => {
 			setMemos(mockMemos);
 			setLoading(false);
 		}, 300);
-	};
+	}, []);
 
 	// 插入标签
-	const insertTag = (tag: Tag) => {
-		if (editorRef.current) {
-			const text = editorRef.current.value();
-			const beforeCursor = text.substring(0, cursorPosition);
-			const afterCursor = text.substring(cursorPosition);
+	const insertTag = useCallback((tag: Tag) => {
+		const quill = (document.querySelector('.ql-editor') as any)?.__quill;
+		if (quill) {
+			const range = quill.getSelection();
+			if (range) {
+				const text = quill.getText();
+				const beforeCursor = text.substring(0, range.index);
+				const lastHashIndex = beforeCursor.lastIndexOf('#');
 
-			const lastHashIndex = beforeCursor.lastIndexOf('#');
-			if (lastHashIndex !== -1) {
-				const newText = beforeCursor.substring(0, lastHashIndex) + `#${tag.name} ` + afterCursor;
-				editorRef.current.value(newText);
-				setContent(newText);
-				setShowTagDropdown(false);
+				if (lastHashIndex !== -1) {
+					quill.deleteText(lastHashIndex, range.index - lastHashIndex);
+					quill.insertText(lastHashIndex, `#${tag.name} `);
+				}
 			}
 		}
-	};
+		setShowTagDropdown(false);
+	}, []);
 
 	// 插入备忘录引用
-	const insertMemo = (memo: Memo) => {
-		if (editorRef.current) {
-			const text = editorRef.current.value();
-			const beforeCursor = text.substring(0, cursorPosition);
-			const afterCursor = text.substring(cursorPosition);
+	const insertMemo = useCallback((memo: Memo) => {
+		const quill = (document.querySelector('.ql-editor') as any)?.__quill;
+		if (quill) {
+			const range = quill.getSelection();
+			if (range) {
+				const text = quill.getText();
+				const beforeCursor = text.substring(0, range.index);
+				const lastAtIndex = beforeCursor.lastIndexOf('@');
 
-			const lastAtIndex = beforeCursor.lastIndexOf('@');
-			if (lastAtIndex !== -1) {
-				const newText = beforeCursor.substring(0, lastAtIndex) + `@${memo.title} ` + afterCursor;
-				editorRef.current.value(newText);
-				setContent(newText);
-				setShowMemoDropdown(false);
+				if (lastAtIndex !== -1) {
+					quill.deleteText(lastAtIndex, range.index - lastAtIndex);
+					quill.insertText(lastAtIndex, `@${memo.title} `);
+				}
 			}
 		}
-	};
+		setShowMemoDropdown(false);
+	}, []);
 
 	// 保存笔记
 	const handleSave = async () => {
@@ -213,20 +178,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ onSave }) => {
 			message.success('笔记保存成功');
 			setTitle('');
 			setContent('');
-			if (editorRef.current) {
-				editorRef.current.value('');
-			}
-			onSave(); // 触发父组件刷新笔记列表
+			onSave();
 		} catch (error) {
 			message.error('保存失败，请重试');
-		}
-	};
-
-	// 监听键盘事件
-	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-		if (e.key === 'Enter' && e.shiftKey) {
-			e.preventDefault(); // 阻止默认换行行为
-			handleSave();
 		}
 	};
 
@@ -238,8 +192,24 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ onSave }) => {
 				onChange={(e) => setTitle(e.target.value)}
 				className={styles.titleInput}
 			/>
+
 			<div className={styles.editorContainer}>
-				<textarea ref={editorElementRef} />
+				<ReactQuill
+					value={content}
+					onChange={(value) => {
+						setContent(value);
+						const quill = (document.querySelector('.ql-editor') as any)?.__quill;
+						if (quill) {
+							const range = quill.getSelection();
+							if (range) {
+								setCursorPosition(range.index);
+								checkForSpecialCharacters(value, range.index);
+							}
+						}
+					}}
+					modules={modules}
+					className={styles.quillEditor}
+				/>
 
 				{/* 标签下拉菜单 */}
 				{showTagDropdown && (
@@ -278,6 +248,30 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ onSave }) => {
 						</Spin>
 					</div>
 				)}
+			</div>
+
+			<div className={styles.toolbar}>
+				<Upload
+					customRequest={async ({ file }) => {
+						const url = await handleFileUpload(file as File);
+						if (url) {
+							const quill = (document.querySelector('.ql-editor') as any)?.__quill;
+							if (quill) {
+								const range = quill.getSelection();
+								if (range) {
+									quill.insertEmbed(range.index, 'image', url);
+								}
+							}
+						}
+					}}
+					showUploadList={false}
+				>
+					<Button icon={<UploadOutlined />}>上传图片</Button>
+				</Upload>
+
+				<Button type="primary" onClick={handleSave}>
+					保存
+				</Button>
 			</div>
 		</div>
 	);
