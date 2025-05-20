@@ -29,10 +29,10 @@ const NoteList: React.FC = () => {
 	};
 
 	const handleSearch = async (keyword: string) => {
-		if(keyword.trim()){
+		if (keyword.trim()) {
 			const data = await searchNotes(keyword.trim());
 			setNotes(data);
-		}else{
+		} else {
 			await loadNotes();
 		}
 	};
