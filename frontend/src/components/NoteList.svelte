@@ -32,47 +32,20 @@
   }
 </script>
 
-<div class="note-list-container">
+<div class="w-full">
   {#if loading}
-    <div class="loading">加载中...</div>
+    <div class="text-center py-12 text-muted-foreground">加载中...</div>
   {:else if error}
-    <div class="error">错误: {error}</div>
+    <div class="text-center py-12 text-destructive">错误: {error}</div>
   {:else if notes.length === 0}
-    <div class="empty-state">
+    <div class="text-center py-12 text-muted-foreground">
       <p>还没有笔记，创建第一个吧！</p>
     </div>
   {:else}
-    <div class="notes-grid">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {#each notes as note (note.id)}
         <NoteCard {note} on:click={() => handleNoteClick(note.id)} />
       {/each}
     </div>
   {/if}
 </div>
-
-<style>
-  .note-list-container {
-    width: 100%;
-  }
-
-  .loading,
-  .error,
-  .empty-state {
-    text-align: center;
-    padding: 3rem;
-    color: var(--text-secondary);
-  }
-
-  .notes-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-  }
-
-  @media (max-width: 768px) {
-    .notes-grid {
-      grid-template-columns: 1fr;
-      gap: 1rem;
-    }
-  }
-</style>
