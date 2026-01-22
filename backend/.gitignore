@@ -1,0 +1,6 @@
+notes.db
+*.db
+*.exe
+*.test
+*.prof
+vendor/
