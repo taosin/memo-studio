@@ -58,8 +58,8 @@
       <CardHeader>
         <CardTitle class="text-3xl">{note.title || '无标题'}</CardTitle>
       </CardHeader>
-      <CardContent class="space-y-4">
-        <div class="flex flex-wrap justify-between items-center gap-4 pb-4 border-b">
+      <CardContent class="space-y-3 p-3">
+        <div class="flex flex-wrap justify-between items-center gap-4 pb-3 border-b">
           <div class="flex flex-wrap gap-2">
             {#each note.tags || [] as tag}
               <Badge 

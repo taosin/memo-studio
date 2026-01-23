@@ -95,7 +95,7 @@
   </div>
 
   <Card>
-    <CardContent class="p-6 space-y-6">
+    <CardContent class="p-3 space-y-4">
       <div>
         <Input
           className="text-2xl font-semibold"

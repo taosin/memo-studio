@@ -9,6 +9,7 @@
 
   const dispatch = createEventDispatcher();
   let editorElement;
+  let suggestionElement;
   let allTags = [];
   let allNotes = [];
   let showTagSuggestions = false;
@@ -17,6 +18,7 @@
   let suggestionIndex = -1;
   let triggerPosition = { start: 0, end: 0 };
   let currentTrigger = ''; // '#' or '@'
+  let suggestionPosition = { top: 0, left: 0 };
 
   onMount(async () => {
     await loadData();
@@ -43,6 +45,31 @@
     editorElement.addEventListener('input', handleInput);
     editorElement.addEventListener('keydown', handleKeyDown);
     editorElement.addEventListener('click', hideSuggestions);
+    editorElement.addEventListener('mousemove', updateSuggestionPosition);
+  }
+
+  function updateSuggestionPosition(e) {
+    if (showTagSuggestions || showNoteSuggestions) {
+      const rect = editorElement.getBoundingClientRect();
+      suggestionPosition = {
+        top: e.clientY - rect.top + 10,
+        left: e.clientX - rect.left
+      };
+    }
+  }
+
+  function getCaretCoordinates() {
+    const selection = window.getSelection();
+    if (selection.rangeCount === 0) return { top: 0, left: 0 };
+    
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    const editorRect = editorElement.getBoundingClientRect();
+    
+    return {
+      top: rect.bottom - editorRect.top + 5,
+      left: rect.left - editorRect.left
+    };
   }
 
   function handleInput(e) {
@@ -63,6 +90,11 @@
       );
       showTagSuggestions = suggestions.length > 0;
       suggestionIndex = -1;
+      
+      // 更新提示框位置
+      const coords = getCaretCoordinates();
+      suggestionPosition = coords;
+      
       updateValue();
       return;
     }
@@ -83,6 +115,11 @@
       });
       showNoteSuggestions = suggestions.length > 0;
       suggestionIndex = -1;
+      
+      // 更新提示框位置
+      const coords = getCaretCoordinates();
+      suggestionPosition = coords;
+      
       updateValue();
       return;
     }
@@ -124,9 +161,6 @@
     if (selection.rangeCount === 0) return;
     
     const range = selection.getRangeAt(0);
-    const textNode = editorElement.childNodes[0] || editorElement;
-    
-    // 获取当前文本
     const text = editorElement.innerText || '';
     const before = text.substring(0, triggerPosition.start);
     const after = text.substring(triggerPosition.end);
@@ -223,11 +257,15 @@
 
   <!-- 标签建议 -->
   {#if showTagSuggestions && suggestions.length > 0}
-    <Card class="absolute z-50 mt-1 max-h-60 overflow-y-auto w-64 shadow-lg">
-      <div class="p-2">
+    <Card 
+      bind:this={suggestionElement}
+      class="absolute z-50 max-h-60 overflow-y-auto w-64 shadow-lg"
+      style="top: {suggestionPosition.top}px; left: {suggestionPosition.left}px;"
+    >
+      <div class="p-3">
         {#each suggestions as suggestion, index}
           <div
-            class="p-2 rounded-md cursor-pointer transition-colors {index === suggestionIndex ? 'bg-accent' : 'hover:bg-accent'}"
+            class="p-3 rounded-md cursor-pointer transition-colors {index === suggestionIndex ? 'bg-accent' : 'hover:bg-accent'}"
             on:click={() => insertSuggestion(suggestion)}
             on:mouseenter={() => suggestionIndex = index}
           >
@@ -245,11 +283,15 @@
 
   <!-- 笔记建议 -->
   {#if showNoteSuggestions && suggestions.length > 0}
-    <Card class="absolute z-50 mt-1 max-h-60 overflow-y-auto w-64 shadow-lg">
-      <div class="p-2">
+    <Card 
+      bind:this={suggestionElement}
+      class="absolute z-50 max-h-60 overflow-y-auto w-64 shadow-lg"
+      style="top: {suggestionPosition.top}px; left: {suggestionPosition.left}px;"
+    >
+      <div class="p-3">
         {#each suggestions as suggestion, index}
           <div
-            class="p-2 rounded-md cursor-pointer transition-colors {index === suggestionIndex ? 'bg-accent' : 'hover:bg-accent'}"
+            class="p-3 rounded-md cursor-pointer transition-colors {index === suggestionIndex ? 'bg-accent' : 'hover:bg-accent'}"
             on:click={() => insertSuggestion(suggestion)}
             on:mouseenter={() => suggestionIndex = index}
           >

@@ -144,24 +144,31 @@
   }
 </script>
 
-<div class="flex gap-6">
+<div class="flex flex-col md:flex-row gap-4">
   <!-- 左侧边栏 -->
-  <aside class="w-64 flex-shrink-0 hidden lg:block">
-    <div class="sticky top-24 space-y-6">
-      <SearchBar value={searchQuery} on:search={(e) => handleSearch(e.detail)} />
-      <TagTree {selectedTags} on:tagSelect={(e) => handleTagSelect(e.detail)} />
+  <aside class="w-full md:w-64 flex-shrink-0 md:block">
+    <div class="sticky top-24 space-y-4">
+      <div class="hidden md:block">
+        <SearchBar value={searchQuery} on:search={(e) => handleSearch(e.detail)} />
+      </div>
+      <div class="hidden lg:block">
+        <TagTree {selectedTags} on:tagSelect={(e) => handleTagSelect(e.detail)} />
+      </div>
     </div>
   </aside>
 
   <!-- 主内容区 -->
   <div class="flex-1 min-w-0">
-    <!-- 移动端搜索栏 -->
-    <div class="lg:hidden mb-4">
+    <!-- 移动端搜索栏和标签树 -->
+    <div class="md:hidden mb-4 space-y-3">
       <SearchBar value={searchQuery} on:search={(e) => handleSearch(e.detail)} />
+      <div class="lg:hidden">
+        <TagTree {selectedTags} on:tagSelect={(e) => handleTagSelect(e.detail)} />
+      </div>
     </div>
 
     <!-- 工具栏 -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
       <ViewModeToggle mode={viewMode} on:change={(e) => handleViewModeChange(e.detail)} />
       <div class="text-sm text-muted-foreground">
         共 {filteredNotes.length} 条笔记
@@ -178,7 +185,7 @@
       </div>
     {:else if viewMode === 'waterfall'}
       <!-- 瀑布流模式 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {#each filteredNotes as note (note.id)}
           <NoteCard 
             {note} 

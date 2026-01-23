@@ -3,11 +3,12 @@
   import NoteList from './components/NoteList.svelte';
   import NoteDetail from './components/NoteDetail.svelte';
   import NoteEditor from './components/NoteEditor.svelte';
+  import ProfilePage from './components/ProfilePage.svelte';
   import ThemeToggle from './components/ThemeToggle.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
   import { api } from './utils/api.js';
 
-  let currentView = 'list'; // 'list', 'detail', 'editor'
+  let currentView = 'list'; // 'list', 'detail', 'editor', 'profile'
   let selectedNoteId = null;
   let editingNote = null;
   let listKey = 0; // 用于强制刷新列表
@@ -34,6 +35,15 @@
     editingNote = null;
   }
 
+  function handleProfile() {
+    currentView = 'profile';
+  }
+
+  function handleLogout() {
+    // 退出登录逻辑
+    alert('退出登录功能');
+  }
+
   function handleSave() {
     currentView = 'list';
     editingNote = null;
@@ -53,17 +63,20 @@
 
 <div class="min-h-screen flex flex-col bg-background">
   <header class="sticky top-0 z-50 w-full border-b bg-card">
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex h-16 items-center justify-between">
+    <div class="container mx-auto px-4">
+      <div class="flex h-14 sm:h-16 items-center justify-between">
         <h1 
-          class="text-2xl font-semibold cursor-pointer select-none"
+          class="text-xl sm:text-2xl font-semibold cursor-pointer select-none"
           on:click={handleBack}
         >
           📝 Memo Studio
         </h1>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 sm:gap-4">
           {#if currentView === 'list'}
-            <Button on:click={handleNewNote}>+ 新建笔记</Button>
+            <Button on:click={handleNewNote} size="sm" class="text-xs sm:text-sm">+ 新建</Button>
+            <Button variant="ghost" size="sm" on:click={handleProfile}>
+              👤
+            </Button>
           {/if}
           <ThemeToggle />
         </div>
@@ -71,7 +84,7 @@
     </div>
   </header>
 
-  <main class="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-[1400px]">
+  <main class="flex-1 container mx-auto px-4 py-4 max-w-[1400px]">
     {#if currentView === 'list'}
       <NoteList 
         key={listKey} 
@@ -90,6 +103,8 @@
         on:save={handleSave}
         on:cancel={handleBack}
       />
+    {:else if currentView === 'profile'}
+      <ProfilePage on:logout={handleLogout} />
     {/if}
   </main>
 </div>

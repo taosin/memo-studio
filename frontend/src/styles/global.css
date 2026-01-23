@@ -66,3 +66,16 @@
 #app {
   @apply min-h-screen;
 }
+
+/* 响应式断点优化 */
+@media (max-width: 640px) {
+  /* 移动端 H5 */
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* iPad 端 */
+}
+
+@media (min-width: 1025px) {
+  /* Web 端 */
+}

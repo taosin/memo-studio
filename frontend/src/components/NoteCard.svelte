@@ -29,7 +29,7 @@
   tabindex="0"
   on:keydown={(e) => e.key === 'Enter' && handleClick()}
 >
-  <CardContent class="p-4">
+  <CardContent class="p-3">
     <h3 class="text-lg font-semibold mb-2 text-card-foreground">
       {note.title || '无标题'}
     </h3>
@@ -37,7 +37,7 @@
       {(note.content || '').substring(0, 150)}{(note.content || '').length > 150 ? '...' : ''}
     </p>
   </CardContent>
-  <CardFooter class="flex justify-between items-center pt-0 pb-4 px-4 border-t">
+  <CardFooter class="flex justify-between items-center pt-0 pb-3 px-3 border-t">
     <div class="flex flex-wrap gap-1.5">
       {#each note.tags || [] as tag}
         <Badge 
