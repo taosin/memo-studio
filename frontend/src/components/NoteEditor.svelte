@@ -6,9 +6,9 @@
   import Card from '$lib/components/ui/card/card.svelte';
   import CardContent from '$lib/components/ui/card/card-content.svelte';
   import Input from '$lib/components/ui/input/input.svelte';
-  import Textarea from '$lib/components/ui/textarea/textarea.svelte';
   import Label from '$lib/components/ui/label/label.svelte';
   import Badge from '$lib/components/ui/badge/badge.svelte';
+  import RichTextEditor from './RichTextEditor.svelte';
 
   export let note = null; // 如果存在则是编辑模式，否则是新建模式
   const dispatch = createEventDispatcher();
@@ -23,7 +23,12 @@
     if (note) {
       // 编辑模式
       title = note.title || '';
+      // 如果内容是HTML，直接使用；否则转换为HTML
       content = note.content || '';
+      if (content && !content.includes('<')) {
+        // 纯文本，转换为HTML（保留换行）
+        content = content.replace(/\n/g, '<br>');
+      }
       tags = (note.tags || []).map(t => t.name).join(',');
     }
     await loadTags();
@@ -37,15 +42,27 @@
     }
   }
 
+  function handleContentChange(e) {
+    content = e.detail;
+  }
+
   async function handleSave() {
-    if (!content.trim()) {
+    // 从富文本内容中提取纯文本用于验证
+    const textContent = content.replace(/<[^>]*>/g, '').trim();
+    if (!textContent) {
       alert('内容不能为空');
       return;
     }
 
     loading = true;
     try {
-      const tagList = tags.split(',').map(t => t.trim()).filter(t => t);
+      // 从内容中提取标签（#标签格式，支持中文）
+      const tagMatches = content.match(/#([\w\u4e00-\u9fa5]+)/g) || [];
+      const contentTags = tagMatches.map(match => match.substring(1));
+      
+      // 合并手动输入的标签和内容中的标签
+      const manualTags = tags.split(',').map(t => t.trim()).filter(t => t);
+      const tagList = [...new Set([...manualTags, ...contentTags])];
       
       if (note) {
         // 编辑模式 - 这里可以后续实现更新接口
@@ -88,7 +105,7 @@
       </div>
 
       <div class="space-y-2">
-        <Label>标签（用逗号分隔）</Label>
+        <Label>标签（用逗号分隔，或在内容中使用 #标签）</Label>
         <Input
           placeholder="例如: 工作, 学习, 生活"
           bind:value={tags}
@@ -116,10 +133,11 @@
       </div>
 
       <div>
-        <Textarea
-          className="min-h-[400px] text-base"
-          placeholder="开始记录你的想法..."
-          bind:value={content}
+        <Label class="mb-2 block">内容（支持富文本，输入 # 选择标签，输入 @ 引用笔记）</Label>
+        <RichTextEditor
+          value={content}
+          placeholder="开始记录你的想法... 输入 # 选择标签，输入 @ 引用笔记"
+          on:input={handleContentChange}
         />
       </div>
     </CardContent>

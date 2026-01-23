@@ -5,11 +5,13 @@
   import NoteEditor from './components/NoteEditor.svelte';
   import ThemeToggle from './components/ThemeToggle.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
+  import { api } from './utils/api.js';
 
   let currentView = 'list'; // 'list', 'detail', 'editor'
   let selectedNoteId = null;
   let editingNote = null;
   let listKey = 0; // 用于强制刷新列表
+  let notes = []; // 用于快速编辑
 
   function handleNoteClick(noteId) {
     selectedNoteId = noteId;
@@ -37,6 +39,16 @@
     editingNote = null;
     listKey++; // 触发列表刷新
   }
+
+  async function handleQuickEdit(noteId) {
+    // 快速编辑：直接进入编辑模式
+    try {
+      const note = await api.getNote(noteId);
+      handleEditNote(note);
+    } catch (err) {
+      console.error('获取笔记失败:', err);
+    }
+  }
 </script>
 
 <div class="min-h-screen flex flex-col bg-background">
@@ -59,9 +71,13 @@
     </div>
   </header>
 
-  <main class="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
+  <main class="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-[1400px]">
     {#if currentView === 'list'}
-      <NoteList key={listKey} on:noteClick={(e) => handleNoteClick(e.detail)} />
+      <NoteList 
+        key={listKey} 
+        on:noteClick={(e) => handleNoteClick(e.detail)}
+        onQuickEdit={handleQuickEdit}
+      />
     {:else if currentView === 'detail'}
       <NoteDetail 
         noteId={selectedNoteId} 

@@ -36,13 +36,13 @@ let mockNotes = [
 ];
 
 let mockTags = [
-  { id: 1, name: '欢迎', color: '#4ECDC4', created_at: new Date().toISOString() },
-  { id: 2, name: '指南', color: '#FF6B6B', created_at: new Date().toISOString() },
-  { id: 3, name: '学习', color: '#45B7D1', created_at: new Date().toISOString() },
-  { id: 4, name: '前端', color: '#98D8C8', created_at: new Date().toISOString() },
-  { id: 5, name: '工作', color: '#F7DC6F', created_at: new Date().toISOString() },
-  { id: 6, name: '待办', color: '#BB8FCE', created_at: new Date().toISOString() },
-  { id: 7, name: '生活', color: '#85C1E2', created_at: new Date().toISOString() }
+  { id: 1, name: '欢迎', color: '#4ECDC4', created_at: new Date().toISOString(), count: 1 },
+  { id: 2, name: '指南', color: '#FF6B6B', created_at: new Date().toISOString(), count: 1 },
+  { id: 3, name: '学习', color: '#45B7D1', created_at: new Date().toISOString(), count: 1 },
+  { id: 4, name: '前端', color: '#98D8C8', created_at: new Date().toISOString(), count: 1 },
+  { id: 5, name: '工作', color: '#F7DC6F', created_at: new Date().toISOString(), count: 1 },
+  { id: 6, name: '待办', color: '#BB8FCE', created_at: new Date().toISOString(), count: 1 },
+  { id: 7, name: '生活', color: '#85C1E2', created_at: new Date().toISOString(), count: 0 }
 ];
 
 let nextNoteId = 4;

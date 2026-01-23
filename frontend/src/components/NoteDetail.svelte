@@ -74,9 +74,7 @@
             {new Date(note.created_at).toLocaleString('zh-CN')}
           </span>
         </div>
-        <div class="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words">
-          {note.content}
-        </div>
+        <div class="prose prose-sm dark:prose-invert max-w-none break-words" innerHTML={note.content}></div>
       </CardContent>
     </Card>
   {/if}
