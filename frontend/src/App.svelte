@@ -65,12 +65,12 @@
   <header class="sticky top-0 z-50 w-full border-b bg-card">
     <div class="container mx-auto px-4">
       <div class="flex h-14 sm:h-16 items-center justify-between">
-        <h1 
-          class="text-xl sm:text-2xl font-semibold cursor-pointer select-none"
+        <button
+          class="text-xl sm:text-2xl font-semibold cursor-pointer select-none bg-transparent border-none p-0 text-left"
           on:click={handleBack}
         >
           📝 Memo Studio
-        </h1>
+        </button>
         <div class="flex items-center gap-2 sm:gap-4">
           {#if currentView === 'list'}
             <Button on:click={handleNewNote} size="sm" class="text-xs sm:text-sm">+ 新建</Button>

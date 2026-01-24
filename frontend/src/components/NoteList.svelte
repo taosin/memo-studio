@@ -283,17 +283,15 @@
         >
           导出
         </Button>
-        {selectedNoteIds.size > 0 && (
-          <>
-            <Button
-              variant="destructive"
-              size="sm"
-              on:click={handleBatchDelete}
-            >
-              删除选中 ({selectedNoteIds.size})
-            </Button>
-          </>
-        )}
+        {#if selectedNoteIds.size > 0}
+          <Button
+            variant="destructive"
+            size="sm"
+            on:click={handleBatchDelete}
+          >
+            删除选中 ({selectedNoteIds.size})
+          </Button>
+        {/if}
       </div>
       <div class="text-sm text-muted-foreground">
         共 {filteredNotes.length} 条笔记
@@ -360,7 +358,10 @@
           <div class="border-l-2 border-primary/20 pl-4">
             <div 
               class="flex items-center gap-2 mb-4 cursor-pointer hover:text-primary transition-colors"
+              role="button"
+              tabindex="0"
               on:click={() => toggleGroup(date)}
+              on:keydown={(e) => e.key === 'Enter' && toggleGroup(date)}
             >
               <span class="text-xs">{collapsedGroups.has(date) ? '▶' : '▼'}</span>
               <h3 class="text-lg font-semibold">{date}</h3>

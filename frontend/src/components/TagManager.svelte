@@ -147,61 +147,65 @@
   <!-- 编辑对话框 -->
   {#if showEditDialog && editingTag}
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={cancelEdit}>
-      <Card class="w-full max-w-md" on:click|stopPropagation>
-        <CardHeader>
-          <CardTitle>编辑标签</CardTitle>
-        </CardHeader>
-        <CardContent class="p-3 space-y-4">
-          <div>
-            <Label>标签名称</Label>
-            <Input bind:value={editName} />
-          </div>
-          <div>
-            <Label>标签颜色</Label>
-            <div class="flex gap-2 mt-2">
-              <Input type="color" bind:value={editColor} class="w-20 h-10" />
-              <Input bind:value={editColor} placeholder="#4ECDC4" />
+      <div on:click|stopPropagation>
+        <Card class="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>编辑标签</CardTitle>
+          </CardHeader>
+          <CardContent class="p-3 space-y-4">
+            <div>
+              <Label>标签名称</Label>
+              <Input bind:value={editName} />
             </div>
-          </div>
-          <div class="flex gap-2">
-            <Button on:click={saveEdit} class="flex-1">保存</Button>
-            <Button variant="outline" on:click={cancelEdit}>取消</Button>
-          </div>
-        </CardContent>
-      </Card>
+            <div>
+              <Label>标签颜色</Label>
+              <div class="flex gap-2 mt-2">
+                <Input type="color" bind:value={editColor} class="w-20 h-10" />
+                <Input bind:value={editColor} placeholder="#4ECDC4" />
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <Button on:click={saveEdit} class="flex-1">保存</Button>
+              <Button variant="outline" on:click={cancelEdit}>取消</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   {/if}
 
   <!-- 合并对话框 -->
   {#if showMergeDialog && mergeSource}
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={cancelMerge}>
-      <Card class="w-full max-w-md" on:click|stopPropagation>
-        <CardHeader>
-          <CardTitle>合并标签</CardTitle>
-        </CardHeader>
-        <CardContent class="p-3 space-y-4">
-          <p class="text-sm text-muted-foreground">
-            选择要将 "<strong>{mergeSource.name}</strong>" 合并到的目标标签：
-          </p>
-          <div class="space-y-2 max-h-60 overflow-y-auto">
-            {#each tags.filter(t => t.id !== mergeSource.id) as tag}
-              <Button
-                variant="outline"
-                class="w-full justify-start"
-                on:click={() => handleMerge(tag)}
-              >
-                <Badge
+      <div on:click|stopPropagation>
+        <Card class="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>合并标签</CardTitle>
+          </CardHeader>
+          <CardContent class="p-3 space-y-4">
+            <p class="text-sm text-muted-foreground">
+              选择要将 "<strong>{mergeSource.name}</strong>" 合并到的目标标签：
+            </p>
+            <div class="space-y-2 max-h-60 overflow-y-auto">
+              {#each tags.filter(t => t.id !== mergeSource.id) as tag}
+                <Button
                   variant="outline"
-                  style="border-color: {tag.color}; color: {tag.color}"
+                  class="w-full justify-start"
+                  on:click={() => handleMerge(tag)}
                 >
-                  {tag.name}
-                </Badge>
-              </Button>
-            {/each}
-          </div>
-          <Button variant="outline" on:click={cancelMerge} class="w-full">取消</Button>
-        </CardContent>
-      </Card>
+                  <Badge
+                    variant="outline"
+                    style="border-color: {tag.color}; color: {tag.color}"
+                  >
+                    {tag.name}
+                  </Badge>
+                </Button>
+              {/each}
+            </div>
+            <Button variant="outline" on:click={cancelMerge} class="w-full">取消</Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   {/if}
 </div>

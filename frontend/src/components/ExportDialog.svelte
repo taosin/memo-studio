@@ -44,7 +44,8 @@
 
 {#if visible}
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={() => dispatch('close')}>
-    <Card class="w-full max-w-md" on:click|stopPropagation>
+    <div on:click|stopPropagation>
+      <Card class="w-full max-w-md">
       <CardHeader>
         <CardTitle>导出笔记</CardTitle>
       </CardHeader>
@@ -96,5 +97,6 @@
         </div>
       </CardContent>
     </Card>
+    </div>
   </div>
 {/if}
