@@ -8,6 +8,43 @@
   export let note;
   const dispatch = createEventDispatcher();
   
+  // 安全地提取笔记内容的纯文本预览
+  function getContentPreview(content) {
+    // 调试：检查 content 的类型
+    if (typeof content !== 'string' && content !== null && content !== undefined) {
+      console.warn('NoteCard - content 不是字符串:', typeof content, content);
+    }
+    
+    // 处理各种可能的类型
+    let safeContent = '';
+    if (typeof content === 'string') {
+      safeContent = content;
+    } else if (content === null || content === undefined) {
+      safeContent = '';
+    } else {
+      // 如果是对象或其他类型，尝试转换
+      try {
+        if (typeof content === 'object') {
+          // 如果是对象，可能是错误存储的数据，尝试提取文本
+          safeContent = JSON.stringify(content);
+        } else {
+          safeContent = String(content);
+        }
+      } catch (e) {
+        console.error('转换 content 失败:', e);
+        safeContent = '';
+      }
+    }
+    
+    // 如果是 HTML，提取纯文本；否则直接使用
+    const textContent = safeContent.replace(/<[^>]*>/g, '').trim();
+    // 截取前 150 个字符
+    if (textContent.length > 150) {
+      return textContent.substring(0, 150) + '...';
+    }
+    return textContent || '无内容';
+  }
+  
   function handleClick() {
     dispatch('click');
   }
@@ -35,7 +72,7 @@
         {note.title || '无标题'}
       </h3>
       <p class="text-muted-foreground text-sm line-clamp-3 mb-3">
-        {(note.content || '').substring(0, 150)}{(note.content || '').length > 150 ? '...' : ''}
+        {getContentPreview(note.content)}
       </p>
     </CardContent>
     <CardFooter class="flex justify-between items-center pt-0 pb-3 px-3 border-t">

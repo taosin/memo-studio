@@ -234,7 +234,8 @@
   }
 
   function updateValue() {
-    value = editorElement.innerHTML;
+    // 确保 value 始终是字符串
+    value = String(editorElement.innerHTML || '');
     dispatch('input', { detail: value });
   }
 

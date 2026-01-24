@@ -22,9 +22,25 @@
   onMount(async () => {
     if (note) {
       // 编辑模式
-      title = note.title || '';
+      // 调试：检查 note.content 的类型
+      console.log('NoteEditor onMount - note.content type:', typeof note.content, 'value:', note.content);
+      
+      title = String(note.title || '');
       // 如果内容是HTML，直接使用；否则转换为HTML
-      const noteContent = note.content || '';
+      // 处理可能的对象类型
+      let noteContent = '';
+      if (typeof note.content === 'string') {
+        noteContent = note.content;
+      } else if (note.content !== null && note.content !== undefined) {
+        // 如果是对象，尝试转换为字符串
+        try {
+          noteContent = typeof note.content === 'object' ? JSON.stringify(note.content) : String(note.content);
+        } catch (e) {
+          console.error('转换 content 失败:', e);
+          noteContent = '';
+        }
+      }
+      
       if (noteContent && !noteContent.includes('<')) {
         // 纯文本，转换为HTML（保留换行）
         content = noteContent.replace(/\n/g, '<br>');
@@ -50,13 +66,14 @@
   }
 
   function handleContentChange(e) {
-    content = e.detail;
+    // 确保 content 始终是字符串类型
+    content = String(e.detail || '');
   }
 
   async function handleSave() {
-    // 确保 content 和 title 是字符串
-    const safeContent = content || '';
-    const safeTitle = title || '';
+    // 确保 content 和 title 是字符串（使用 String() 强制转换，处理 null/undefined）
+    const safeContent = String(content || '');
+    const safeTitle = String(title || '');
     
     // 从富文本内容中提取纯文本用于验证
     const textContent = safeContent.replace(/<[^>]*>/g, '').trim();

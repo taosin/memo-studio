@@ -24,7 +24,15 @@
   async function loadNote() {
     try {
       loading = true;
-      note = await api.getNote(noteId);
+      const loadedNote = await api.getNote(noteId);
+      // 确保 content 是字符串
+      if (typeof loadedNote.content !== 'string') {
+        console.warn('NoteDetail - content 不是字符串:', typeof loadedNote.content, loadedNote.content);
+        loadedNote.content = typeof loadedNote.content === 'object' 
+          ? JSON.stringify(loadedNote.content) 
+          : String(loadedNote.content || '');
+      }
+      note = loadedNote;
       error = null;
     } catch (err) {
       error = err.message;
@@ -91,7 +99,22 @@
             {new Date(note.created_at).toLocaleString('zh-CN')}
           </span>
         </div>
-        <div class="prose prose-sm dark:prose-invert max-w-none break-words" innerHTML={note.content}></div>
+        <div class="prose prose-sm dark:prose-invert max-w-none break-words" innerHTML={(() => {
+          // 确保 content 是字符串
+          if (typeof note.content === 'string') {
+            return note.content;
+          } else if (note.content === null || note.content === undefined) {
+            return '';
+          } else {
+            // 如果是对象，尝试转换
+            try {
+              return typeof note.content === 'object' ? JSON.stringify(note.content) : String(note.content);
+            } catch (e) {
+              console.error('转换 content 失败:', e);
+              return '';
+            }
+          }
+        })()}></div>
       </CardContent>
     </Card>
   {/if}

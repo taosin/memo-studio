@@ -93,8 +93,42 @@ const realApi = {
       throw new Error('获取笔记列表失败');
     }
     const data = await response.json();
-    // 确保返回的是数组
-    return Array.isArray(data) ? data : [];
+    // 确保返回的是数组，并清理每个笔记的 content 字段
+    if (!Array.isArray(data)) {
+      return [];
+    }
+    // 清理每个笔记的数据
+    return data.map(note => {
+      let cleanContent = '';
+      if (typeof note.content === 'string') {
+        cleanContent = note.content;
+        // 检查是否是 JSON 字符串化的对象
+        if (cleanContent.startsWith('{') || cleanContent.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(cleanContent);
+            // 如果是对象，尝试提取文本内容
+            if (typeof parsed === 'object') {
+              cleanContent = parsed.content || parsed.text || parsed.value || JSON.stringify(parsed);
+            }
+          } catch (e) {
+            // 不是有效的 JSON，保持原样
+          }
+        }
+      } else if (note.content !== null && note.content !== undefined) {
+        // 如果是对象，尝试提取或转换
+        if (typeof note.content === 'object') {
+          cleanContent = note.content.content || note.content.text || note.content.value || JSON.stringify(note.content);
+        } else {
+          cleanContent = String(note.content);
+        }
+      }
+      
+      return {
+        ...note,
+        content: cleanContent,
+        title: typeof note.title === 'string' ? note.title : (note.title ? String(note.title) : '')
+      };
+    });
   },
 
   async getNote(id) {
@@ -113,7 +147,38 @@ const realApi = {
       const error = await response.json().catch(() => ({}));
       throw new Error(error.error || '获取笔记失败');
     }
-    return await response.json();
+    const note = await response.json();
+    // 清理 content 字段
+    let cleanContent = '';
+    if (typeof note.content === 'string') {
+      cleanContent = note.content;
+      // 检查是否是 JSON 字符串化的对象
+      if (cleanContent.startsWith('{') || cleanContent.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(cleanContent);
+          // 如果是对象，尝试提取文本内容
+          if (typeof parsed === 'object') {
+            cleanContent = parsed.content || parsed.text || parsed.value || JSON.stringify(parsed);
+          }
+        } catch (e) {
+          // 不是有效的 JSON，保持原样
+        }
+      }
+    } else if (note.content !== null && note.content !== undefined) {
+      // 如果是对象，尝试提取或转换
+      if (typeof note.content === 'object') {
+        cleanContent = note.content.content || note.content.text || note.content.value || JSON.stringify(note.content);
+      } else {
+        cleanContent = String(note.content);
+      }
+    }
+    
+    // 确保 content 和 title 是字符串
+    return {
+      ...note,
+      content: cleanContent,
+      title: typeof note.title === 'string' ? note.title : (note.title ? String(note.title) : '')
+    };
   },
 
   async createNote(title, content, tags) {
