@@ -17,6 +17,11 @@ func Init() error {
 		return err
 	}
 
+	// 测试连接
+	if err = DB.Ping(); err != nil {
+		return err
+	}
+
 	// 创建表
 	if err := createTables(); err != nil {
 		return err

@@ -1,8 +1,5 @@
-// 使用 mock 数据，不依赖后端
-import { mockApi } from './mockData.js';
-
-// 如果需要切换到真实 API，将 USE_MOCK 设置为 false
-const USE_MOCK = true;
+// 使用真实 API，连接后端 SQLite 数据库
+const USE_MOCK = false;
 
 const API_BASE = '/api';
 
@@ -131,4 +128,8 @@ const realApi = {
 };
 
 // 根据 USE_MOCK 选择使用 mock 数据还是真实 API
-export const api = USE_MOCK ? mockApi : realApi;
+export const api = USE_MOCK ? (() => {
+  // 如果需要使用 mock，取消下面的注释
+  // return mockApi;
+  throw new Error('Mock API 未启用，请设置 USE_MOCK = true 并导入 mockApi');
+})() : realApi;

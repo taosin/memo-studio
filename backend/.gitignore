@@ -4,3 +4,4 @@ notes.db
 *.test
 *.prof
 vendor/
+backend/notes.db

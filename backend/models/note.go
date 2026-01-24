@@ -61,6 +61,78 @@ func CreateNote(title, content string, tagIDs []int) (*Note, error) {
 	return GetNote(int(noteID))
 }
 
+// UpdateNote 更新笔记
+func UpdateNote(id int, title, content string, tagIDs []int) (*Note, error) {
+	tx, err := database.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// 更新笔记
+	_, err = tx.Exec(
+		"UPDATE notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		title, content, id,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// 删除旧的标签关联
+	_, err = tx.Exec("DELETE FROM note_tags WHERE note_id = ?", id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 添加新的标签关联
+	for _, tagID := range tagIDs {
+		_, err = tx.Exec(
+			"INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)",
+			id, tagID,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return GetNote(id)
+}
+
+// DeleteNote 删除笔记
+func DeleteNote(id int) error {
+	_, err := database.DB.Exec("DELETE FROM notes WHERE id = ?", id)
+	return err
+}
+
+// DeleteNotes 批量删除笔记
+func DeleteNotes(ids []int) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	// 构建占位符
+	placeholders := ""
+	for i := 0; i < len(ids); i++ {
+		if i > 0 {
+			placeholders += ","
+		}
+		placeholders += "?"
+	}
+
+	query := "DELETE FROM notes WHERE id IN (" + placeholders + ")"
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+
+	_, err := database.DB.Exec(query, args...)
+	return err
+}
+
 // GetNote 获取单个笔记
 func GetNote(id int) (*Note, error) {
 	note := &Note{}
@@ -198,6 +270,106 @@ func CreateTagIfNotExists(name string) (*Tag, error) {
 	}
 
 	return &tag, nil
+}
+
+// UpdateTag 更新标签
+func UpdateTag(id int, name, color string) (*Tag, error) {
+	_, err := database.DB.Exec(
+		"UPDATE tags SET name = ?, color = ? WHERE id = ?",
+		name, color, id,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// 获取更新后的标签
+	var tag Tag
+	err = database.DB.QueryRow(
+		"SELECT id, name, color, created_at FROM tags WHERE id = ?",
+		id,
+	).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.CreatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 标签更新后，关联的笔记会自动使用新的标签信息（通过 JOIN 查询）
+
+	return &tag, nil
+}
+
+// DeleteTag 删除标签
+func DeleteTag(id int) error {
+	// 先删除所有笔记标签关联
+	_, err := database.DB.Exec("DELETE FROM note_tags WHERE tag_id = ?", id)
+	if err != nil {
+		return err
+	}
+
+	// 删除标签
+	_, err = database.DB.Exec("DELETE FROM tags WHERE id = ?", id)
+	return err
+}
+
+// MergeTags 合并标签
+func MergeTags(sourceID, targetID int) error {
+	tx, err := database.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 获取所有使用源标签的笔记
+	rows, err := tx.Query("SELECT DISTINCT note_id FROM note_tags WHERE tag_id = ?", sourceID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var noteIDs []int
+	for rows.Next() {
+		var noteID int
+		if err := rows.Scan(&noteID); err != nil {
+			return err
+		}
+		noteIDs = append(noteIDs, noteID)
+	}
+
+	// 对于每个笔记，如果已经有目标标签则删除源标签，否则替换
+	for _, noteID := range noteIDs {
+		var hasTarget bool
+		err := tx.QueryRow(
+			"SELECT COUNT(*) > 0 FROM note_tags WHERE note_id = ? AND tag_id = ?",
+			noteID, targetID,
+		).Scan(&hasTarget)
+
+		if err != nil {
+			return err
+		}
+
+		if hasTarget {
+			// 已有目标标签，只删除源标签
+			_, err = tx.Exec("DELETE FROM note_tags WHERE note_id = ? AND tag_id = ?", noteID, sourceID)
+		} else {
+			// 没有目标标签，替换源标签为目标标签
+			_, err = tx.Exec(
+				"UPDATE note_tags SET tag_id = ? WHERE note_id = ? AND tag_id = ?",
+				targetID, noteID, sourceID,
+			)
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	// 删除源标签
+	_, err = tx.Exec("DELETE FROM tags WHERE id = ?", sourceID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // getTagColor 根据标签名生成颜色

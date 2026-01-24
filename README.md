@@ -98,7 +98,28 @@ GET /api/tags
 
 ### 数据库
 
-使用 SQLite 数据库，首次运行会自动创建数据库文件 `notes.db` 和表结构。
+使用 SQLite 数据库，首次运行会自动创建数据库文件 `backend/notes.db` 和表结构。
+
+数据库表结构：
+- `notes` - 笔记表
+- `tags` - 标签表
+- `note_tags` - 笔记标签关联表
+
+### API 接口
+
+#### 笔记相关
+- `GET /api/notes` - 获取所有笔记
+- `GET /api/notes/:id` - 获取单个笔记
+- `POST /api/notes` - 创建笔记
+- `PUT /api/notes/:id` - 更新笔记
+- `DELETE /api/notes/:id` - 删除笔记
+- `DELETE /api/notes/batch` - 批量删除笔记
+
+#### 标签相关
+- `GET /api/tags` - 获取所有标签
+- `PUT /api/tags/:id` - 更新标签
+- `DELETE /api/tags/:id` - 删除标签
+- `POST /api/tags/merge` - 合并标签
 
 ### 主题切换
 
@@ -108,6 +129,7 @@ GET /api/tags
 
 - 桌面端：网格布局，多列显示
 - 移动端：单列布局，优化触摸交互
+- iPad 端：2-3 列布局
 
 ## 后续计划
 

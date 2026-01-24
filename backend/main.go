@@ -28,10 +28,19 @@ func main() {
 	// API 路由
 	api := r.Group("/api")
 	{
+		// 笔记相关
 		api.GET("/notes", handlers.GetNotes)
 		api.POST("/notes", handlers.CreateNote)
 		api.GET("/notes/:id", handlers.GetNote)
+		api.PUT("/notes/:id", handlers.UpdateNote)
+		api.DELETE("/notes/:id", handlers.DeleteNote)
+		api.DELETE("/notes/batch", handlers.DeleteNotes)
+
+		// 标签相关
 		api.GET("/tags", handlers.GetTags)
+		api.PUT("/tags/:id", handlers.UpdateTag)
+		api.DELETE("/tags/:id", handlers.DeleteTag)
+		api.POST("/tags/merge", handlers.MergeTags)
 	}
 
 	// 启动服务器
