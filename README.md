@@ -101,30 +101,52 @@ memo-studio/
 
 ## API 接口
 
-### 认证相关（公开接口）
+### 健康检查（公开接口）
+- `GET /health` - 健康检查端点
 
+#### 认证相关（公开接口）
 - `POST /api/auth/login` - 用户登录
+  - 请求体: `{ "username": "string", "password": "string" }`
+  - 返回: `{ "token": "string", "user": {...} }`
 - `POST /api/auth/register` - 用户注册
+  - 请求体: `{ "username": "string", "password": "string", "email": "string" }`
+  - 返回: `{ "token": "string", "user": {...} }`
 
-### 用户相关（需要认证）
-
+#### 用户相关（需要认证）
 - `GET /api/auth/me` - 获取当前用户信息
+  - 需要 Authorization: Bearer <token>
+  - 返回: `{ "id": number, "username": "string", "email": "string", "created_at": "datetime" }`
 
 ### 笔记相关（需要认证）
 
 - `GET /api/notes` - 获取所有笔记
+  - 返回: `[{ "id": number, "title": "string", "content": "string", "tags": [...], "created_at": "datetime", "updated_at": "datetime" }]`
 - `GET /api/notes/:id` - 获取单个笔记
+  - 返回: `{ "id": number, "title": "string", "content": "string", "tags": [...], "created_at": "datetime", "updated_at": "datetime" }`
 - `POST /api/notes` - 创建笔记
+  - 请求体: `{ "title": "string", "content": "string", "tags": ["string"] }`
+  - 返回: 创建的笔记对象
 - `PUT /api/notes/:id` - 更新笔记
+  - 请求体: `{ "title": "string", "content": "string", "tags": ["string"] }`
+  - 返回: 更新后的笔记对象
 - `DELETE /api/notes/:id` - 删除笔记
+  - 返回: `{ "success": true, "message": "笔记已删除" }`
 - `DELETE /api/notes/batch` - 批量删除笔记
+  - 请求体: `{ "ids": [number] }`
+  - 返回: `{ "success": true, "deleted": number, "message": "string" }`
 
 ### 标签相关（需要认证）
 
 - `GET /api/tags` - 获取所有标签
+  - 返回: `[{ "id": number, "name": "string", "color": "string", "created_at": "datetime" }]`
 - `PUT /api/tags/:id` - 更新标签
+  - 请求体: `{ "name": "string", "color": "string" }`
+  - 返回: 更新后的标签对象
 - `DELETE /api/tags/:id` - 删除标签
+  - 返回: `{ "success": true, "message": "标签已删除" }`
 - `POST /api/tags/merge` - 合并标签
+  - 请求体: `{ "sourceId": number, "targetId": number }`
+  - 返回: `{ "success": true, "message": "标签合并成功" }`
 
 ## 数据库
 
@@ -144,9 +166,51 @@ memo-studio/
 - Node.js 18+
 - npm 或 yarn
 
-### 开发模式
+### 热更新说明
 
-后端和前端都支持热重载，修改代码后会自动重新编译。
+#### 前端热更新（自动）✅
+
+前端使用 Vite，**默认支持热模块替换（HMR）**：
+- ✅ 修改前端代码后，浏览器会自动刷新
+- ✅ 无需手动重启前端服务
+- ✅ 修改样式和组件会立即生效
+- ✅ 保持应用状态（不会丢失数据）
+
+**使用方式：**
+1. 启动服务后，修改 `frontend/src/` 下的任何文件
+2. 保存文件后，浏览器会自动更新
+3. 无需任何手动操作
+
+#### 后端热重载（需要工具）
+
+后端 Go 服务默认不支持热重载，有两种方式：
+
+**方式一：使用 Air（推荐，自动热重载）**
+
+1. 安装 Air：
+   ```bash
+   go install github.com/cosmtrek/air@latest
+   ```
+
+2. 在 `backend` 目录运行：
+   ```bash
+   cd backend
+   ./start-dev.sh
+   # 或直接运行
+   air
+   ```
+
+3. 修改 Go 代码后，Air 会自动重新编译和重启服务
+
+**方式二：手动重启（简单但需要手动操作）**
+
+修改代码后，需要手动停止并重新启动后端服务：
+```bash
+# 停止服务（Ctrl+C）
+# 然后重新运行
+cd backend
+go run main.go
+```
 
 ### 日志文件
 
@@ -163,35 +227,7 @@ memo-studio/
 
 ## 故障排查
 
-### 使用诊断工具
-
-如果遇到启动问题，可以先运行诊断脚本：
-
-```bash
-./check.sh
-```
-
-诊断脚本会检查：
-- Go 和 Node.js 环境
-- 端口占用情况
-- 依赖安装状态
-- 日志文件内容
-
-### 查看错误日志
-
-启动脚本会在项目根目录生成日志文件：
-
-```bash
-# 查看后端日志
-tail -f backend.log
-
-# 查看前端日志
-tail -f frontend.log
-```
-
-### 常见问题
-
-#### 1. 端口被占用
+### 端口被占用
 
 如果 9000 或 9001 端口被占用，启动脚本会自动尝试清理。如果失败，请手动停止占用端口的进程：
 
@@ -203,40 +239,6 @@ lsof -i :9001
 # 停止进程（替换 PID）
 kill -9 <PID>
 ```
-
-#### 2. Go 依赖安装失败
-
-如果 Go 依赖安装失败，可能是网络问题：
-
-```bash
-cd backend
-go mod download
-go mod tidy
-```
-
-#### 3. npm 依赖安装失败
-
-如果 npm 依赖安装失败：
-
-```bash
-cd frontend
-rm -rf node_modules package-lock.json
-npm install
-```
-
-#### 4. 后端启动失败
-
-检查后端日志文件 `backend.log`，常见原因：
-- 数据库文件权限问题
-- 端口被占用
-- Go 依赖缺失
-
-#### 5. 前端启动失败
-
-检查前端日志文件 `frontend.log`，常见原因：
-- npm 依赖缺失
-- 端口被占用
-- Vite 配置问题
 
 ### 依赖安装失败
 
@@ -263,6 +265,18 @@ cd backend
 rm notes.db
 # 重新启动服务，数据库会自动创建
 ```
+
+### 热更新不工作
+
+**前端：**
+- 检查浏览器控制台是否有错误
+- 尝试硬刷新（Ctrl+Shift+R 或 Cmd+Shift+R）
+- 检查 Vite 开发服务器是否正常运行
+
+**后端：**
+- 确保已安装 Air：`go install github.com/cosmtrek/air@latest`
+- 检查 `.air.toml` 配置文件是否存在
+- 查看 Air 的输出日志
 
 ## 许可证
 
