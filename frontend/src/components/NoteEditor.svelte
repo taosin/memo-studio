@@ -24,12 +24,19 @@
       // 编辑模式
       title = note.title || '';
       // 如果内容是HTML，直接使用；否则转换为HTML
-      content = note.content || '';
-      if (content && !content.includes('<')) {
+      const noteContent = note.content || '';
+      if (noteContent && !noteContent.includes('<')) {
         // 纯文本，转换为HTML（保留换行）
-        content = content.replace(/\n/g, '<br>');
+        content = noteContent.replace(/\n/g, '<br>');
+      } else {
+        content = noteContent;
       }
       tags = (note.tags || []).map(t => t.name).join(',');
+    } else {
+      // 新建模式，确保初始值为空字符串
+      title = '';
+      content = '';
+      tags = '';
     }
     await loadTags();
   });
@@ -47,35 +54,60 @@
   }
 
   async function handleSave() {
+    // 确保 content 和 title 是字符串
+    const safeContent = content || '';
+    const safeTitle = title || '';
+    
     // 从富文本内容中提取纯文本用于验证
-    const textContent = content.replace(/<[^>]*>/g, '').trim();
-    if (!textContent) {
-      alert('内容不能为空');
+    const textContent = safeContent.replace(/<[^>]*>/g, '').trim();
+    const titleText = safeTitle.trim();
+    
+    if (!textContent && !titleText) {
+      alert('标题和内容不能同时为空');
       return;
     }
 
     loading = true;
     try {
       // 从内容中提取标签（#标签格式，支持中文）
-      const tagMatches = content.match(/#([\w\u4e00-\u9fa5]+)/g) || [];
+      const tagMatches = safeContent.match(/#([\w\u4e00-\u9fa5]+)/g) || [];
       const contentTags = tagMatches.map(match => match.substring(1));
       
       // 合并手动输入的标签和内容中的标签
-      const manualTags = tags.split(',').map(t => t.trim()).filter(t => t);
+      const manualTags = (tags || '').split(',').map(t => t.trim()).filter(t => t);
       const tagList = [...new Set([...manualTags, ...contentTags])];
+      
+      // 确保至少有一个字段不为空（后端会验证）
+      const finalTitle = titleText || '';
+      const finalContent = safeContent.trim() || '';
+      
+      console.log('保存笔记:', { 
+        mode: note && note.id ? 'edit' : 'create',
+        title: finalTitle,
+        contentLength: finalContent.length,
+        tags: tagList 
+      });
       
       if (note && note.id) {
         // 编辑模式 - 使用更新接口
-        await api.updateNote(note.id, title, content, tagList);
+        const result = await api.updateNote(note.id, finalTitle, finalContent, tagList);
+        console.log('更新成功:', result);
       } else {
         // 新建模式
-        await api.createNote(title, content, tagList);
+        const result = await api.createNote(finalTitle, finalContent, tagList);
+        console.log('创建成功:', result);
       }
       
       dispatch('save');
     } catch (err) {
-      alert('保存失败: ' + err.message);
-      console.error('保存笔记失败:', err);
+      console.error('保存笔记失败 - 详细错误:', err);
+      console.error('请求数据:', { 
+        title: safeTitle.trim(), 
+        contentLength: safeContent.trim().length,
+        hasNote: !!note,
+        noteId: note?.id 
+      });
+      alert('保存失败: ' + (err.message || '未知错误'));
     } finally {
       loading = false;
     }

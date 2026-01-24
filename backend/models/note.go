@@ -236,6 +236,21 @@ func GetAllTags() ([]Tag, error) {
 	return tags, nil
 }
 
+// GetTagByID 根据ID获取标签
+func GetTagByID(id int) (*Tag, error) {
+	var tag Tag
+	err := database.DB.QueryRow(
+		"SELECT id, name, color, created_at FROM tags WHERE id = ?",
+		id,
+	).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.CreatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &tag, nil
+}
+
 // CreateTagIfNotExists 如果标签不存在则创建
 func CreateTagIfNotExists(name string) (*Tag, error) {
 	// 先查找是否存在

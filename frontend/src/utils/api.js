@@ -64,7 +64,15 @@ const realApi = {
   async getCurrentUser() {
     const response = await fetchWithAuth(`${API_BASE}/auth/me`);
     if (!response.ok) {
-      throw new Error('获取用户信息失败');
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || '获取用户信息失败');
     }
     return await response.json();
   },
@@ -92,7 +100,18 @@ const realApi = {
   async getNote(id) {
     const response = await fetchWithAuth(`${API_BASE}/notes/${id}`);
     if (!response.ok) {
-      throw new Error('获取笔记失败');
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
+      if (response.status === 404) {
+        throw new Error('笔记不存在');
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || '获取笔记失败');
     }
     return await response.json();
   },
@@ -107,7 +126,15 @@ const realApi = {
       }),
     });
     if (!response.ok) {
-      throw new Error('创建笔记失败');
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || '创建笔记失败');
     }
     return await response.json();
   },
@@ -115,9 +142,19 @@ const realApi = {
   async getTags() {
     const response = await fetchWithAuth(`${API_BASE}/tags`);
     if (!response.ok) {
-      throw new Error('获取标签列表失败');
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || '获取标签列表失败');
     }
-    return await response.json();
+    const data = await response.json();
+    // 确保返回的是数组
+    return Array.isArray(data) ? data : [];
   },
 
   async updateNote(id, title, content, tags) {
@@ -130,7 +167,18 @@ const realApi = {
       }),
     });
     if (!response.ok) {
-      throw new Error('更新笔记失败');
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
+      if (response.status === 404) {
+        throw new Error('笔记不存在');
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || '更新笔记失败');
     }
     return await response.json();
   },
@@ -140,29 +188,65 @@ const realApi = {
       method: 'DELETE',
     });
     if (!response.ok) {
-      throw new Error('删除笔记失败');
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
+      if (response.status === 404) {
+        throw new Error('笔记不存在');
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || '删除笔记失败');
     }
     return await response.json();
   },
 
   async deleteNotes(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new Error('请选择要删除的笔记');
+    }
     const response = await fetchWithAuth(`${API_BASE}/notes/batch`, {
       method: 'DELETE',
       body: JSON.stringify({ ids }),
     });
     if (!response.ok) {
-      throw new Error('批量删除笔记失败');
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || '批量删除笔记失败');
     }
     return await response.json();
   },
 
   async updateTag(id, name, color) {
+    if (!name || name.trim() === '') {
+      throw new Error('标签名称不能为空');
+    }
     const response = await fetchWithAuth(`${API_BASE}/tags/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ name, color }),
     });
     if (!response.ok) {
-      throw new Error('更新标签失败');
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
+      if (response.status === 404) {
+        throw new Error('标签不存在');
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || '更新标签失败');
     }
     return await response.json();
   },
@@ -172,18 +256,43 @@ const realApi = {
       method: 'DELETE',
     });
     if (!response.ok) {
-      throw new Error('删除标签失败');
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
+      if (response.status === 404) {
+        throw new Error('标签不存在');
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || '删除标签失败');
     }
     return await response.json();
   },
 
   async mergeTags(sourceId, targetId) {
+    if (!sourceId || !targetId) {
+      throw new Error('请选择要合并的标签');
+    }
+    if (sourceId === targetId) {
+      throw new Error('不能合并相同的标签');
+    }
     const response = await fetchWithAuth(`${API_BASE}/tags/merge`, {
       method: 'POST',
       body: JSON.stringify({ sourceId, targetId }),
     });
     if (!response.ok) {
-      throw new Error('合并标签失败');
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || '合并标签失败');
     }
     return await response.json();
   },
