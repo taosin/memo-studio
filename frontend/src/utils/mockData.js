@@ -99,11 +99,156 @@ export const mockApi = {
     };
 
     mockNotes.unshift(newNote); // 添加到开头
+    updateTagCounts();
     return { ...newNote };
+  },
+
+  async updateNote(id, title, content, tags = []) {
+    await delay();
+    
+    const noteIndex = mockNotes.findIndex(n => n.id === parseInt(id));
+    if (noteIndex === -1) {
+      throw new Error('笔记不存在');
+    }
+
+    // 创建或获取标签
+    const noteTags = tags.map(tagName => {
+      let tag = mockTags.find(t => t.name === tagName);
+      if (!tag) {
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
+        const hash = tagName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        tag = {
+          id: nextTagId++,
+          name: tagName,
+          color: colors[hash % colors.length],
+          created_at: new Date().toISOString()
+        };
+        mockTags.push(tag);
+      }
+      return tag;
+    });
+
+    const note = mockNotes[noteIndex];
+    note.title = title || '无标题';
+    note.content = content;
+    note.tags = noteTags;
+    note.updated_at = new Date().toISOString();
+
+    updateTagCounts();
+    return { ...note };
+  },
+
+  async deleteNote(id) {
+    await delay();
+    
+    const noteIndex = mockNotes.findIndex(n => n.id === parseInt(id));
+    if (noteIndex === -1) {
+      throw new Error('笔记不存在');
+    }
+
+    mockNotes.splice(noteIndex, 1);
+    updateTagCounts();
+    return { success: true };
+  },
+
+  async deleteNotes(ids) {
+    await delay();
+    
+    ids.forEach(id => {
+      const noteIndex = mockNotes.findIndex(n => n.id === parseInt(id));
+      if (noteIndex !== -1) {
+        mockNotes.splice(noteIndex, 1);
+      }
+    });
+
+    updateTagCounts();
+    return { success: true, deleted: ids.length };
   },
 
   async getTags() {
     await delay();
+    updateTagCounts();
     return [...mockTags];
+  },
+
+  async updateTag(id, name, color) {
+    await delay();
+    
+    const tag = mockTags.find(t => t.id === parseInt(id));
+    if (!tag) {
+      throw new Error('标签不存在');
+    }
+
+    tag.name = name;
+    if (color) tag.color = color;
+    tag.updated_at = new Date().toISOString();
+
+    // 更新所有使用该标签的笔记
+    mockNotes.forEach(note => {
+      const noteTag = note.tags.find(t => t.id === tag.id);
+      if (noteTag) {
+        noteTag.name = name;
+        if (color) noteTag.color = color;
+      }
+    });
+
+    return { ...tag };
+  },
+
+  async deleteTag(id) {
+    await delay();
+    
+    const tagIndex = mockTags.findIndex(t => t.id === parseInt(id));
+    if (tagIndex === -1) {
+      throw new Error('标签不存在');
+    }
+
+    // 从所有笔记中移除该标签
+    mockNotes.forEach(note => {
+      note.tags = note.tags.filter(t => t.id !== parseInt(id));
+    });
+
+    mockTags.splice(tagIndex, 1);
+    return { success: true };
+  },
+
+  async mergeTags(sourceId, targetId) {
+    await delay();
+    
+    const sourceTag = mockTags.find(t => t.id === parseInt(sourceId));
+    const targetTag = mockTags.find(t => t.id === parseInt(targetId));
+    
+    if (!sourceTag || !targetTag) {
+      throw new Error('标签不存在');
+    }
+
+    // 将所有使用源标签的笔记改为使用目标标签
+    mockNotes.forEach(note => {
+      const hasSource = note.tags.some(t => t.id === parseInt(sourceId));
+      const hasTarget = note.tags.some(t => t.id === parseInt(targetId));
+      
+      if (hasSource && !hasTarget) {
+        note.tags = note.tags.map(t => 
+          t.id === parseInt(sourceId) ? targetTag : t
+        );
+      } else if (hasSource && hasTarget) {
+        note.tags = note.tags.filter(t => t.id !== parseInt(sourceId));
+      }
+    });
+
+    // 删除源标签
+    await this.deleteTag(sourceId);
+    updateTagCounts();
+    
+    return { success: true };
   }
 };
+
+// 更新标签计数
+function updateTagCounts() {
+  mockTags.forEach(tag => {
+    tag.count = mockNotes.filter(note => 
+      (note.tags || []).some(t => t.id === tag.id)
+    ).length;
+  });
+}

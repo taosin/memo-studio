@@ -96,6 +96,10 @@
         noteId={selectedNoteId} 
         on:back={handleBack}
         on:edit={(e) => handleEditNote(e.detail)}
+        on:deleted={() => {
+          listKey++;
+          handleBack();
+        }}
       />
     {:else if currentView === 'editor'}
       <NoteEditor 

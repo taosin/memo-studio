@@ -64,9 +64,9 @@
       const manualTags = tags.split(',').map(t => t.trim()).filter(t => t);
       const tagList = [...new Set([...manualTags, ...contentTags])];
       
-      if (note) {
-        // 编辑模式 - 这里可以后续实现更新接口
-        await api.createNote(title, content, tagList);
+      if (note && note.id) {
+        // 编辑模式 - 使用更新接口
+        await api.updateNote(note.id, title, content, tagList);
       } else {
         // 新建模式
         await api.createNote(title, content, tagList);

@@ -41,6 +41,20 @@
   function handleBack() {
     dispatch('back');
   }
+
+  async function handleDelete() {
+    if (!confirm('确定要删除这条笔记吗？')) {
+      return;
+    }
+
+    try {
+      await api.deleteNote(noteId);
+      dispatch('deleted');
+      dispatch('back');
+    } catch (err) {
+      alert('删除失败: ' + err.message);
+    }
+  }
 </script>
 
 <div class="w-full max-w-3xl mx-auto">
@@ -51,7 +65,10 @@
   {:else if note}
     <div class="flex justify-between mb-6">
       <Button variant="outline" on:click={handleBack}>← 返回</Button>
-      <Button on:click={handleEdit}>编辑</Button>
+      <div class="flex gap-2">
+        <Button variant="outline" on:click={handleEdit}>编辑</Button>
+        <Button variant="destructive" on:click={handleDelete}>删除</Button>
+      </div>
     </div>
 
     <Card>

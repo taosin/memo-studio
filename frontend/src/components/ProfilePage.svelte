@@ -8,11 +8,12 @@
   import CardContent from '$lib/components/ui/card/card-content.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
   import Heatmap from './Heatmap.svelte';
+  import TagManager from './TagManager.svelte';
   import { themeStore } from '../stores/theme.js';
 
   const dispatch = createEventDispatcher();
 
-  let activeTab = 'detail'; // 'detail', 'settings', 'stats'
+  let activeTab = 'detail'; // 'detail', 'settings', 'stats', 'tags'
   let notes = [];
   let tags = [];
   let stats = {
@@ -94,6 +95,12 @@
       on:click={() => activeTab = 'stats'}
     >
       记录统计
+    </button>
+    <button
+      class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'tags' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      on:click={() => activeTab = 'tags'}
+    >
+      标签管理
     </button>
   </div>
 
@@ -193,6 +200,11 @@
         </CardContent>
       </Card>
     </div>
+  {/if}
+
+  <!-- 标签管理 -->
+  {#if activeTab === 'tags'}
+    <TagManager on:updated={loadData} />
   {/if}
 
   <!-- 退出按钮 -->

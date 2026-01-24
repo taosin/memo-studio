@@ -48,6 +48,86 @@ const realApi = {
     }
     return await response.json();
   },
+
+  async updateNote(id, title, content, tags) {
+    const response = await fetch(`${API_BASE}/notes/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title,
+        content,
+        tags,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error('更新笔记失败');
+    }
+    return await response.json();
+  },
+
+  async deleteNote(id) {
+    const response = await fetch(`${API_BASE}/notes/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('删除笔记失败');
+    }
+    return await response.json();
+  },
+
+  async deleteNotes(ids) {
+    const response = await fetch(`${API_BASE}/notes/batch`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids }),
+    });
+    if (!response.ok) {
+      throw new Error('批量删除笔记失败');
+    }
+    return await response.json();
+  },
+
+  async updateTag(id, name, color) {
+    const response = await fetch(`${API_BASE}/tags/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name, color }),
+    });
+    if (!response.ok) {
+      throw new Error('更新标签失败');
+    }
+    return await response.json();
+  },
+
+  async deleteTag(id) {
+    const response = await fetch(`${API_BASE}/tags/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('删除标签失败');
+    }
+    return await response.json();
+  },
+
+  async mergeTags(sourceId, targetId) {
+    const response = await fetch(`${API_BASE}/tags/merge`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ sourceId, targetId }),
+    });
+    if (!response.ok) {
+      throw new Error('合并标签失败');
+    }
+    return await response.json();
+  },
 };
 
 // 根据 USE_MOCK 选择使用 mock 数据还是真实 API
