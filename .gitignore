@@ -1,2 +1,51 @@
-node_modules/.pnpm/@codemirror+autocomplete@6.18.6/node_modules/@codemirror/language
-node_modules/.pnpm/@codemirror+autocomplete@6.18.6/node_modules/@codemirror/state
+# 依赖
+node_modules/
+vendor/
+
+# 构建输出
+dist/
+build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 测试
+*.test
+*.out
+coverage/
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+backend/notes.db
+backend/*.db
+
+# 日志
+*.log
+backend.log
+frontend.log
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# 操作系统
+Thumbs.db
+.DS_Store
