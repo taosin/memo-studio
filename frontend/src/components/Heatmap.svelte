@@ -12,10 +12,17 @@
 
   async function loadNotes() {
     try {
-      notes = await api.getNotes();
+      const data = await api.getNotes();
+      // 确保 notes 始终是数组
+      notes = Array.isArray(data) ? data : [];
+      if (!Array.isArray(data)) {
+        console.warn('API 返回的数据不是数组:', data);
+      }
       generateHeatmapData();
     } catch (err) {
       console.error('加载笔记失败:', err);
+      notes = []; // 出错时设置为空数组
+      heatmapData = {};
     }
   }
 
@@ -31,13 +38,17 @@
       data[dateStr] = 0;
     }
 
-    // 统计每天的笔记数量
-    notes.forEach(note => {
-      const dateStr = formatDate(new Date(note.created_at));
-      if (data[dateStr] !== undefined) {
-        data[dateStr]++;
-      }
-    });
+    // 确保 notes 是数组后再遍历
+    if (Array.isArray(notes)) {
+      notes.forEach(note => {
+        if (note && note.created_at) {
+          const dateStr = formatDate(new Date(note.created_at));
+          if (data[dateStr] !== undefined) {
+            data[dateStr]++;
+          }
+        }
+      });
+    }
 
     heatmapData = data;
   }

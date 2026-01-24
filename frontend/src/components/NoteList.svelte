@@ -50,11 +50,18 @@
   async function loadNotes() {
     try {
       loading = true;
-      notes = await api.getNotes();
+      const data = await api.getNotes();
+      // 确保 notes 始终是数组
+      notes = Array.isArray(data) ? data : [];
+      if (!Array.isArray(data)) {
+        console.warn('API 返回的数据不是数组:', data);
+      }
       filterNotes();
       error = null;
     } catch (err) {
-      error = err.message;
+      error = err.message || '加载笔记失败';
+      notes = []; // 出错时设置为空数组
+      filteredNotes = [];
       console.error('加载笔记失败:', err);
     } finally {
       loading = false;
@@ -62,6 +69,12 @@
   }
 
   function filterNotes() {
+    // 确保 notes 是数组
+    if (!Array.isArray(notes)) {
+      console.warn('notes 不是数组:', notes);
+      filteredNotes = [];
+      return;
+    }
     let filtered = [...notes];
 
     // 高级搜索过滤

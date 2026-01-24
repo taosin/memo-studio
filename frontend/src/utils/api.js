@@ -73,9 +73,20 @@ const realApi = {
   async getNotes() {
     const response = await fetchWithAuth(`${API_BASE}/notes`);
     if (!response.ok) {
+      // 如果是 401 未授权，可能是 token 过期
+      if (response.status === 401) {
+        // 清除 token，让用户重新登录
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        throw new Error('登录已过期，请重新登录');
+      }
       throw new Error('获取笔记列表失败');
     }
-    return await response.json();
+    const data = await response.json();
+    // 确保返回的是数组
+    return Array.isArray(data) ? data : [];
   },
 
   async getNote(id) {
