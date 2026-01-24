@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -10,15 +11,67 @@ import (
 )
 
 type CreateNoteRequest struct {
-	Title   string   `json:"title"`
-	Content string   `json:"content"`
-	Tags    []string `json:"tags"`
+	Title   interface{} `json:"title"`
+	Content interface{}   `json:"content"`
+	Tags    []string    `json:"tags"`
 }
 
 type UpdateNoteRequest struct {
-	Title   string   `json:"title"`
-	Content string   `json:"content"`
-	Tags    []string `json:"tags"`
+	Title   interface{} `json:"title"`
+	Content interface{}   `json:"content"`
+	Tags    []string    `json:"tags"`
+}
+
+// normalizeString 将 interface{} 转换为字符串，处理各种类型
+func normalizeString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	
+	switch val := v.(type) {
+	case string:
+		// 检查是否是错误的 "[object Object]" 字符串
+		if val == "[object Object]" || val == "[object object]" {
+			return ""
+		}
+		return val
+	case []byte:
+		str := string(val)
+		if str == "[object Object]" || str == "[object object]" {
+			return ""
+		}
+		return str
+	case map[string]interface{}:
+		// 如果是对象，尝试提取常见字段或转换为 JSON
+		if content, ok := val["content"].(string); ok {
+			return content
+		}
+		if text, ok := val["text"].(string); ok {
+			return text
+		}
+		if value, ok := val["value"].(string); ok {
+			return value
+		}
+		// 否则转换为 JSON 字符串
+		jsonBytes, err := json.Marshal(val)
+		if err == nil {
+			return string(jsonBytes)
+		}
+		return ""
+	default:
+		// 其他类型，尝试转换为字符串
+		str := ""
+		if jsonBytes, err := json.Marshal(val); err == nil {
+			str = string(jsonBytes)
+		} else {
+			str = ""
+		}
+		// 检查是否是错误的 "[object Object]" 字符串
+		if str == "[object Object]" || str == "[object object]" {
+			return ""
+		}
+		return str
+	}
 }
 
 type BatchDeleteRequest struct {
@@ -76,8 +129,12 @@ func CreateNote(c *gin.Context) {
 		return
 	}
 
+	// 规范化 title 和 content 为字符串
+	title := normalizeString(req.Title)
+	content := normalizeString(req.Content)
+
 	// 验证必填字段
-	if req.Title == "" && req.Content == "" {
+	if title == "" && content == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "标题和内容不能同时为空"})
 		return
 	}
@@ -97,7 +154,7 @@ func CreateNote(c *gin.Context) {
 	}
 
 	// 创建笔记
-	note, err := models.CreateNote(req.Title, req.Content, tagIDs)
+	note, err := models.CreateNote(title, content, tagIDs)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建笔记失败: " + err.Error()})
 		return
@@ -120,8 +177,12 @@ func UpdateNote(c *gin.Context) {
 		return
 	}
 
+	// 规范化 title 和 content 为字符串
+	title := normalizeString(req.Title)
+	content := normalizeString(req.Content)
+
 	// 验证必填字段
-	if req.Content == "" && req.Title == "" {
+	if content == "" && title == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "标题和内容不能同时为空"})
 		return
 	}
@@ -148,7 +209,7 @@ func UpdateNote(c *gin.Context) {
 	}
 
 	// 更新笔记
-	note, err := models.UpdateNote(id, req.Title, req.Content, tagIDs)
+	note, err := models.UpdateNote(id, title, content, tagIDs)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新笔记失败: " + err.Error()})
 		return

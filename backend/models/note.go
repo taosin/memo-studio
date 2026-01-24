@@ -133,6 +133,14 @@ func DeleteNotes(ids []int) error {
 	return err
 }
 
+// cleanContent 清理 content 字段，移除错误的 "[object Object]" 字符串
+func cleanContent(content string) string {
+	if content == "[object Object]" || content == "[object object]" {
+		return ""
+	}
+	return content
+}
+
 // GetNote 获取单个笔记
 func GetNote(id int) (*Note, error) {
 	note := &Note{}
@@ -144,6 +152,10 @@ func GetNote(id int) (*Note, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// 清理 content 字段
+	note.Content = cleanContent(note.Content)
+	note.Title = cleanContent(note.Title)
 
 	// 获取标签
 	tags, err := GetTagsByNoteID(id)
@@ -172,6 +184,10 @@ func GetAllNotes() ([]Note, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// 清理 content 和 title 字段
+		note.Content = cleanContent(note.Content)
+		note.Title = cleanContent(note.Title)
 
 		// 获取标签
 		tags, err := GetTagsByNoteID(note.ID)
