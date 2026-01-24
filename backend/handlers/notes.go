@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -30,10 +32,11 @@ func normalizeString(v interface{}) string {
 	
 	switch val := v.(type) {
 	case string:
-		// 检查是否是错误的 "[object Object]" 字符串
+		// 检查是否是错误的 "[object Object]" 字符串（完全匹配）
 		if val == "[object Object]" || val == "[object object]" {
 			return ""
 		}
+		// 正常字符串直接返回
 		return val
 	case []byte:
 		str := string(val)
@@ -42,35 +45,62 @@ func normalizeString(v interface{}) string {
 		}
 		return str
 	case map[string]interface{}:
-		// 如果是对象，尝试提取常见字段或转换为 JSON
+		// 如果是对象，尝试提取常见字段（允许空字符串）
 		if content, ok := val["content"].(string); ok {
-			return content
+			if content != "[object Object]" && content != "[object object]" {
+				return content
+			}
 		}
 		if text, ok := val["text"].(string); ok {
-			return text
+			if text != "[object Object]" && text != "[object object]" {
+				return text
+			}
 		}
 		if value, ok := val["value"].(string); ok {
-			return value
+			if value != "[object Object]" && value != "[object object]" {
+				return value
+			}
 		}
-		// 否则转换为 JSON 字符串
+		// 如果对象中没有这些字段，尝试转换为 JSON 字符串
 		jsonBytes, err := json.Marshal(val)
 		if err == nil {
-			return string(jsonBytes)
+			jsonStr := string(jsonBytes)
+			// 如果转换后的 JSON 是 "[object Object]"，返回空
+			if jsonStr == `"[object Object]"` || jsonStr == `"[object object]"` {
+				return ""
+			}
+			return jsonStr
 		}
 		return ""
 	default:
 		// 其他类型，尝试转换为字符串
-		str := ""
-		if jsonBytes, err := json.Marshal(val); err == nil {
-			str = string(jsonBytes)
-		} else {
-			str = ""
+		// 对于实现了 Stringer 接口的类型
+		if str, ok := val.(fmt.Stringer); ok {
+			result := str.String()
+			if result == "[object Object]" || result == "[object object]" {
+				return ""
+			}
+			return result
 		}
-		// 检查是否是错误的 "[object Object]" 字符串
-		if str == "[object Object]" || str == "[object object]" {
+		// 尝试 JSON 序列化
+		jsonBytes, err := json.Marshal(val)
+		if err == nil {
+			jsonStr := string(jsonBytes)
+			// 移除 JSON 字符串的引号（如果是字符串类型）
+			if len(jsonStr) > 2 && jsonStr[0] == '"' && jsonStr[len(jsonStr)-1] == '"' {
+				jsonStr = jsonStr[1 : len(jsonStr)-1]
+			}
+			if jsonStr == "[object Object]" || jsonStr == "[object object]" {
+				return ""
+			}
+			return jsonStr
+		}
+		// 如果都失败了，使用 fmt.Sprintf 作为最后手段
+		result := fmt.Sprintf("%v", val)
+		if result == "[object Object]" || result == "[object object]" {
 			return ""
 		}
-		return str
+		return result
 	}
 }
 
@@ -133,6 +163,10 @@ func CreateNote(c *gin.Context) {
 	title := normalizeString(req.Title)
 	content := normalizeString(req.Content)
 
+	// 调试日志
+	log.Printf("CreateNote - 原始数据: title=%v (type: %T), content=%v (type: %T)", req.Title, req.Title, req.Content, req.Content)
+	log.Printf("CreateNote - 规范化后: title=%q, content=%q (length: %d)", title, content, len(content))
+
 	// 验证必填字段
 	if title == "" && content == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "标题和内容不能同时为空"})
@@ -180,6 +214,10 @@ func UpdateNote(c *gin.Context) {
 	// 规范化 title 和 content 为字符串
 	title := normalizeString(req.Title)
 	content := normalizeString(req.Content)
+
+	// 调试日志
+	log.Printf("UpdateNote - 原始数据: title=%v (type: %T), content=%v (type: %T)", req.Title, req.Title, req.Content, req.Content)
+	log.Printf("UpdateNote - 规范化后: title=%q, content=%q (length: %d)", title, content, len(content))
 
 	// 验证必填字段
 	if content == "" && title == "" {

@@ -182,6 +182,16 @@ const realApi = {
   },
 
   async createNote(title, content, tags) {
+    // 调试：检查发送的数据
+    console.log('API createNote - 发送数据:', {
+      title: title,
+      titleType: typeof title,
+      content: content ? content.substring(0, 100) : content,
+      contentType: typeof content,
+      contentLength: content ? content.length : 0,
+      tags: tags
+    });
+    
     const response = await fetchWithAuth(`${API_BASE}/notes`, {
       method: 'POST',
       body: JSON.stringify({
@@ -223,6 +233,17 @@ const realApi = {
   },
 
   async updateNote(id, title, content, tags) {
+    // 调试：检查发送的数据
+    console.log('API updateNote - 发送数据:', {
+      id: id,
+      title: title,
+      titleType: typeof title,
+      content: content ? content.substring(0, 100) : content,
+      contentType: typeof content,
+      contentLength: content ? content.length : 0,
+      tags: tags
+    });
+    
     const response = await fetchWithAuth(`${API_BASE}/notes/${id}`, {
       method: 'PUT',
       body: JSON.stringify({

@@ -101,7 +101,10 @@
       console.log('保存笔记:', { 
         mode: note && note.id ? 'edit' : 'create',
         title: finalTitle,
+        titleLength: finalTitle.length,
+        content: finalContent.substring(0, 100), // 只显示前100个字符
         contentLength: finalContent.length,
+        contentType: typeof finalContent,
         tags: tagList 
       });
       

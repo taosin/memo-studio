@@ -134,10 +134,13 @@ func DeleteNotes(ids []int) error {
 }
 
 // cleanContent 清理 content 字段，移除错误的 "[object Object]" 字符串
+// 注意：只清理完全匹配的 "[object Object]"，不清理其他内容
 func cleanContent(content string) string {
+	// 只清理完全匹配的 "[object Object]" 字符串
 	if content == "[object Object]" || content == "[object object]" {
 		return ""
 	}
+	// 其他内容（包括空字符串、正常内容等）都原样返回
 	return content
 }
 
