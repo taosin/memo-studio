@@ -62,6 +62,16 @@ func createTables() error {
 		FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 	);`
 
+	// 创建用户表
+	usersTable := `
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT NOT NULL UNIQUE,
+		password TEXT NOT NULL,
+		email TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+
 	if _, err := DB.Exec(notesTable); err != nil {
 		return err
 	}
@@ -71,6 +81,10 @@ func createTables() error {
 	}
 
 	if _, err := DB.Exec(noteTagsTable); err != nil {
+		return err
+	}
+
+	if _, err := DB.Exec(usersTable); err != nil {
 		return err
 	}
 

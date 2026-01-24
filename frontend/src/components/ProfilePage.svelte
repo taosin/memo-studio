@@ -10,6 +10,7 @@
   import Heatmap from './Heatmap.svelte';
   import TagManager from './TagManager.svelte';
   import { themeStore } from '../stores/theme.js';
+  import { authStore } from '../stores/auth.js';
 
   const dispatch = createEventDispatcher();
 
@@ -116,14 +117,14 @@
             👤
           </div>
           <div>
-            <h3 class="text-lg font-semibold">用户</h3>
-            <p class="text-sm text-muted-foreground">memo-studio@example.com</p>
+            <h3 class="text-lg font-semibold">{$authStore.user?.username || '用户'}</h3>
+            <p class="text-sm text-muted-foreground">{$authStore.user?.email || '未设置邮箱'}</p>
           </div>
         </div>
         <div class="space-y-2 pt-4 border-t">
           <div class="flex justify-between">
             <span class="text-muted-foreground">注册时间</span>
-            <span>{new Date().toLocaleDateString('zh-CN')}</span>
+            <span>{$authStore.user?.created_at ? new Date($authStore.user.created_at).toLocaleDateString('zh-CN') : '-'}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-muted-foreground">笔记总数</span>

@@ -4,6 +4,7 @@ import (
 	"log"
 	"memo-studio/backend/database"
 	"memo-studio/backend/handlers"
+	"memo-studio/backend/middleware"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -25,9 +26,20 @@ func main() {
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	r.Use(cors.New(config))
 
-	// API 路由
-	api := r.Group("/api")
+	// 公开路由（不需要认证）
+	public := r.Group("/api")
 	{
+		public.POST("/auth/login", handlers.Login)
+		public.POST("/auth/register", handlers.Register)
+	}
+
+	// 需要认证的路由
+	api := r.Group("/api")
+	api.Use(middleware.AuthMiddleware())
+	{
+		// 用户相关
+		api.GET("/auth/me", handlers.GetCurrentUser)
+
 		// 笔记相关
 		api.GET("/notes", handlers.GetNotes)
 		api.POST("/notes", handlers.CreateNote)
