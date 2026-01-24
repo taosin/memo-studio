@@ -26,6 +26,11 @@ func main() {
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	r.Use(cors.New(config))
 
+	// 健康检查端点
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok", "service": "memo-studio-backend"})
+	})
+
 	// 公开路由（不需要认证）
 	public := r.Group("/api")
 	{
