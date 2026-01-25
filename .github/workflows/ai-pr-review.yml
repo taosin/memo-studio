@@ -21,8 +21,10 @@ concurrency:
 
 jobs:
   review_pr:
-    # 仅当 PR 打了 ai-review 标签时才运行（避免与 Gemini/其他机器人刷屏）
-    if: ${{ github.event.pull_request.draft == false && contains(github.event.pull_request.labels.*.name, 'ai-review') }}
+    # 自动策略：
+    # - Dependabot PR：自动运行（无需标签）
+    # - 其他 PR：仅当打了 ai-review 标签才运行（避免与 Gemini/其他机器人刷屏）
+    if: ${{ github.event.pull_request.draft == false && (github.event.pull_request.user.login == 'dependabot[bot]' || contains(github.event.pull_request.labels.*.name, 'ai-review')) }}
     runs-on: ubuntu-latest
     steps:
       # 关键：pull_request_target 下只 checkout base 分支，避免执行不可信 PR 代码

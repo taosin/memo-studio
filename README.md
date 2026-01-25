@@ -175,6 +175,7 @@ docker run -d \
 本仓库已内置工作流：`.github/workflows/ai-pr-review.yml`  
 默认不会对所有 PR 自动评论（避免刷屏/与 Gemini 等机器人冲突）。运行方式如下：
 
+- **特殊规则**：Dependabot 提的依赖更新 PR 会**自动**触发 AI Review（不需要加标签），方便“依赖更新→自动CR→自动合并”全自动闭环
 - **方式 A（推荐）**：给 PR 加上标签 **`ai-review`**，工作流就会自动运行并更新同一条评论
 - **方式 B**：手动触发 `AI PR Review` 工作流，并填写 `pr_number`
 
