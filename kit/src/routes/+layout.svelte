@@ -10,6 +10,10 @@
 
   onMount(() => {
     applyTheme(current);
+    // 生产环境注册 Service Worker
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
+      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    }
     return () => unsub();
   });
 </script>

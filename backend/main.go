@@ -8,6 +8,7 @@ import (
 	"memo-studio/backend/handlers"
 	"memo-studio/backend/middleware"
 	"net/http"
+	"os"
 	"path"
 	"strings"
 
@@ -41,6 +42,14 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok", "service": "memo-studio-backend"})
 	})
 
+	// 附件静态服务（/uploads -> 本地存储目录）
+	// 默认 ./storage，可通过 MEMO_STORAGE_DIR 配置
+	storageDir := os.Getenv("MEMO_STORAGE_DIR")
+	if strings.TrimSpace(storageDir) == "" {
+		storageDir = "./storage"
+	}
+	r.Static("/uploads", storageDir)
+
 	// 公开路由（不需要认证）
 	public := r.Group("/api")
 	{
@@ -69,6 +78,15 @@ func main() {
 	api.Use(middleware.AuthMiddleware())
 	{
 		api.GET("/auth/me", handlers.GetCurrentUser)
+
+		// memos（新接口：需要登录）
+		api.GET("/memos", handlers.ListMemos)
+		api.POST("/memos", handlers.CreateMemo)
+		api.PUT("/memos/:id", handlers.UpdateMemo)
+		api.DELETE("/memos/:id", handlers.DeleteMemo)
+
+		// resources（附件上传）
+		api.POST("/resources", handlers.UploadResource)
 	}
 
 	// 静态文件托管（用于部署：Go 服务直接提供前端）

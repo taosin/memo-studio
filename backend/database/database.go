@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -29,8 +30,16 @@ func Init() error {
 		return err
 	}
 
-	// 创建表
-	if err := createTables(); err != nil {
+	// 推荐的 SQLite pragma（不影响兼容性）
+	// 注意：FTS5 需要通过 go build tag sqlite_fts5 启用
+	if _, err := DB.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
+		return err
+	}
+	_, _ = DB.Exec(`PRAGMA journal_mode = WAL;`)
+	_, _ = DB.Exec(`PRAGMA busy_timeout = 5000;`)
+
+	// 创建表 & 迁移
+	if err := runMigrations(); err != nil {
 		return err
 	}
 
@@ -38,8 +47,8 @@ func Init() error {
 	return nil
 }
 
-// createTables 创建数据库表
-func createTables() error {
+// runMigrations 创建数据库表并执行迁移
+func runMigrations() error {
 	// 关键：DDL/Schema 操作强制走同一个连接，避免连接池导致的 schema 可见性问题
 	conn, err := DB.Conn(context.Background())
 	if err != nil {
@@ -48,6 +57,49 @@ func createTables() error {
 	defer conn.Close()
 	ctx := context.Background()
 
+	// 获取当前 user_version
+	var ver int
+	if err := conn.QueryRowContext(ctx, `PRAGMA user_version;`).Scan(&ver); err != nil {
+		return err
+	}
+
+	// v1：基础 schema（notes/tags/users + FTS5）
+	if ver < 1 {
+		if err := ensureSchemaV1(ctx, conn); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, `PRAGMA user_version = 1;`); err != nil {
+			return err
+		}
+		ver = 1
+	}
+
+	// v2：notes 扩展字段（pinned/content_type/user_id）
+	if ver < 2 {
+		if err := ensureNotesColumnsV2(ctx, conn); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, `PRAGMA user_version = 2;`); err != nil {
+			return err
+		}
+		ver = 2
+	}
+
+	// v3：resources（附件）表 + note_resources 关联表
+	if ver < 3 {
+		if err := ensureResourcesSchemaV3(ctx, conn); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, `PRAGMA user_version = 3;`); err != nil {
+			return err
+		}
+		ver = 3
+	}
+
+	return nil
+}
+
+func ensureSchemaV1(ctx context.Context, conn *sql.Conn) error {
 	// 创建笔记表
 	notesTable := `
 	CREATE TABLE IF NOT EXISTS notes (
@@ -176,4 +228,97 @@ func createTables() error {
 	`)
 
 	return nil
+}
+
+func ensureNotesColumnsV2(ctx context.Context, conn *sql.Conn) error {
+	// pinned
+	if ok, err := columnExists(ctx, conn, "notes", "pinned"); err != nil {
+		return err
+	} else if !ok {
+		if _, err := conn.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;`); err != nil {
+			return err
+		}
+	}
+
+	// content_type
+	if ok, err := columnExists(ctx, conn, "notes", "content_type"); err != nil {
+		return err
+	} else if !ok {
+		// default: markdown（方便前端做渲染策略）
+		if _, err := conn.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN content_type TEXT NOT NULL DEFAULT 'markdown';`); err != nil {
+			return err
+		}
+	}
+
+	// user_id（可为空，兼容旧数据）
+	if ok, err := columnExists(ctx, conn, "notes", "user_id"); err != nil {
+		return err
+	} else if !ok {
+		if _, err := conn.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN user_id INTEGER;`); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ensureResourcesSchemaV3(ctx context.Context, conn *sql.Conn) error {
+	resourcesTable := `
+	CREATE TABLE IF NOT EXISTS resources (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER,
+		filename TEXT NOT NULL,
+		storage_path TEXT NOT NULL,
+		mime_type TEXT,
+		size INTEGER,
+		sha256 TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+	);`
+
+	noteResourcesTable := `
+	CREATE TABLE IF NOT EXISTS note_resources (
+		note_id INTEGER NOT NULL,
+		resource_id INTEGER NOT NULL,
+		PRIMARY KEY (note_id, resource_id),
+		FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+		FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE
+	);`
+
+	if _, err := conn.ExecContext(ctx, resourcesTable); err != nil {
+		return err
+	}
+	if _, err := conn.ExecContext(ctx, noteResourcesTable); err != nil {
+		return err
+	}
+	return nil
+}
+
+func columnExists(ctx context.Context, conn *sql.Conn, table, column string) (bool, error) {
+	// PRAGMA table_info 不支持占位符绑定 table 名，只能拼接；这里做最小转义校验
+	if strings.TrimSpace(table) == "" || strings.TrimSpace(column) == "" {
+		return false, fmt.Errorf("invalid table/column")
+	}
+	table = strings.ReplaceAll(table, `"`, `""`)
+	rows, err := conn.QueryContext(ctx, fmt.Sprintf(`PRAGMA table_info("%s");`, table))
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	// table_info 输出：cid,name,type,notnull,dflt_value,pk
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notnull int
+		var dflt sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
+			return false, err
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }

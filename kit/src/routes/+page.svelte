@@ -2,6 +2,8 @@
   import { onDestroy, onMount } from 'svelte';
   import { api } from '$lib/api.js';
   import { buildHeatmap, heatColor } from '$lib/heatmap.js';
+  import { renderMiniMarkdown } from '$lib/miniMarkdown.js';
+  import { notesStore, tagsStore } from '$lib/stores.js';
 
   let input = '';
   let baseNotes = [];
@@ -24,6 +26,7 @@
   let editId = null;
   let editText = '';
   let debounceTimer;
+  let draftTimer;
 
   function extractTags(text) {
     const matches = String(text || '').match(/#([\p{L}\p{N}_-]+)/gu) || [];
@@ -50,6 +53,8 @@
       baseNotes = Array.isArray(ns) ? ns : [];
       notes = baseNotes;
       tags = Array.isArray(ts) ? ts : [];
+      notesStore.set(notes);
+      tagsStore.set(tags);
       heat = buildHeatmap(notes, 98);
     } catch (e) {
       error = e?.message || '加载失败';
@@ -191,9 +196,18 @@
 
   onDestroy(() => {
     clearTimeout(debounceTimer);
+    clearTimeout(draftTimer);
   });
 
   onMount(async () => {
+    // 恢复草稿
+    try {
+      const draft = localStorage.getItem('memo_draft_v1') || '';
+      if (String(input || '').trim() === '' && String(draft).trim() !== '') {
+        input = draft;
+      }
+    } catch {}
+
     await reload();
     inputEl?.focus();
     // 移动端默认收起侧边栏
@@ -261,10 +275,23 @@
         rows="3"
         placeholder="记录一条想法… 支持 #标签，例如：今天跑步了 #健康 #运动"
         bind:this={inputEl}
+        on:input={() => {
+          // 本地草稿保存（debounce）
+          clearTimeout(draftTimer);
+          draftTimer = setTimeout(() => {
+            try {
+              localStorage.setItem('memo_draft_v1', String(input || ''));
+            } catch {}
+          }, 250);
+        }}
         on:keydown={(e) => {
           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') submit();
         }}
       />
+      <div class="preview">
+        <div class="previewTitle">即时预览（极简 Markdown）</div>
+        <div class="previewBody">{@html renderMiniMarkdown(input)}</div>
+      </div>
       <div class="actions">
         <div class="leftHint">Ctrl/Cmd + Enter 保存</div>
         <div class="btns">
@@ -517,6 +544,37 @@
     background: var(--panel);
     border-radius: 12px;
     padding: 12px;
+  }
+  .preview {
+    margin-top: 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.03);
+    padding: 10px 12px;
+  }
+  .previewTitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .previewBody :global(p) {
+    margin: 0 0 8px 0;
+    line-height: 1.7;
+  }
+  .previewBody :global(ul) {
+    margin: 0 0 8px 18px;
+  }
+  .previewBody :global(code) {
+    padding: 1px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(15, 23, 42, 0.06);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    font-size: 0.95em;
+  }
+  .previewBody :global(a) {
+    text-decoration: underline;
   }
   .input {
     width: 100%;

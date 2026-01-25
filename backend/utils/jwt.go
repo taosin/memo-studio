@@ -1,12 +1,20 @@
 package utils
 
 import (
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 var jwtSecret = []byte("memo-studio-secret-key-change-in-production")
+
+func init() {
+	// 生产环境请通过环境变量覆盖，避免硬编码
+	if v := os.Getenv("MEMO_JWT_SECRET"); v != "" {
+		jwtSecret = []byte(v)
+	}
+}
 
 type Claims struct {
 	UserID   int    `json:"user_id"`

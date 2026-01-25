@@ -193,8 +193,8 @@ func CreateNote(c *gin.Context) {
 		tagIDs = append(tagIDs, tag.ID)
 	}
 
-	// 创建笔记
-	note, err := models.CreateNote(title, content, tagIDs)
+	// 创建笔记（旧接口：默认 markdown、不置顶、无附件、无 user_id）
+	note, err := models.CreateNote(title, content, tagIDs, false, "markdown", nil, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建笔记失败: " + err.Error()})
 		return
@@ -252,8 +252,8 @@ func UpdateNote(c *gin.Context) {
 		tagIDs = append(tagIDs, tag.ID)
 	}
 
-	// 更新笔记
-	note, err := models.UpdateNote(id, title, content, tagIDs)
+	// 更新笔记（旧接口：默认 markdown、不置顶、无附件）
+	note, err := models.UpdateNote(id, title, content, tagIDs, false, "markdown", nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新笔记失败: " + err.Error()})
 		return

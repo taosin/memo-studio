@@ -10,12 +10,16 @@ import (
 )
 
 type Note struct {
-	ID        int       `json:"id"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
-	Tags      []Tag     `json:"tags"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          int        `json:"id"`
+	UserID      *int       `json:"user_id,omitempty"`
+	Title       string     `json:"title"`
+	Content     string     `json:"content"`
+	ContentType string     `json:"content_type"`
+	Pinned      bool       `json:"pinned"`
+	Tags        []Tag      `json:"tags"`
+	Resources   []Resource `json:"resources"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type Tag struct {
@@ -34,16 +38,24 @@ type TagWithCount struct {
 }
 
 // CreateNote 创建笔记
-func CreateNote(title, content string, tagIDs []int) (*Note, error) {
+func CreateNote(title, content string, tagIDs []int, pinned bool, contentType string, resourceIDs []int, userID *int) (*Note, error) {
+	if strings.TrimSpace(contentType) == "" {
+		contentType = "markdown"
+	}
 	tx, err := database.DB.Begin()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
+	var userParam interface{} = nil
+	if userID != nil {
+		userParam = *userID
+	}
+
 	result, err := tx.Exec(
-		"INSERT INTO notes (title, content) VALUES (?, ?)",
-		title, content,
+		"INSERT INTO notes (title, content, pinned, content_type, user_id) VALUES (?, ?, ?, ?, ?)",
+		title, content, pinned, contentType, userParam,
 	)
 	if err != nil {
 		return nil, err
@@ -65,6 +77,20 @@ func CreateNote(title, content string, tagIDs []int) (*Note, error) {
 		}
 	}
 
+	// 关联附件
+	for _, rid := range resourceIDs {
+		if rid <= 0 {
+			continue
+		}
+		_, err = tx.Exec(
+			"INSERT INTO note_resources (note_id, resource_id) VALUES (?, ?)",
+			noteID, rid,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
@@ -73,7 +99,10 @@ func CreateNote(title, content string, tagIDs []int) (*Note, error) {
 }
 
 // UpdateNote 更新笔记
-func UpdateNote(id int, title, content string, tagIDs []int) (*Note, error) {
+func UpdateNote(id int, title, content string, tagIDs []int, pinned bool, contentType string, resourceIDs []int) (*Note, error) {
+	if strings.TrimSpace(contentType) == "" {
+		contentType = "markdown"
+	}
 	tx, err := database.DB.Begin()
 	if err != nil {
 		return nil, err
@@ -82,8 +111,8 @@ func UpdateNote(id int, title, content string, tagIDs []int) (*Note, error) {
 
 	// 更新笔记
 	_, err = tx.Exec(
-		"UPDATE notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		title, content, id,
+		"UPDATE notes SET title = ?, content = ?, pinned = ?, content_type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		title, content, pinned, contentType, id,
 	)
 	if err != nil {
 		return nil, err
@@ -100,6 +129,25 @@ func UpdateNote(id int, title, content string, tagIDs []int) (*Note, error) {
 		_, err = tx.Exec(
 			"INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)",
 			id, tagID,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 删除旧的附件关联
+	_, err = tx.Exec("DELETE FROM note_resources WHERE note_id = ?", id)
+	if err != nil {
+		return nil, err
+	}
+	// 添加新的附件关联
+	for _, rid := range resourceIDs {
+		if rid <= 0 {
+			continue
+		}
+		_, err = tx.Exec(
+			"INSERT INTO note_resources (note_id, resource_id) VALUES (?, ?)",
+			id, rid,
 		)
 		if err != nil {
 			return nil, err
@@ -158,14 +206,24 @@ func cleanContent(content string) string {
 // GetNote 获取单个笔记
 func GetNote(id int) (*Note, error) {
 	note := &Note{}
+	var userID sql.NullInt64
+	var pinnedInt int
+	var contentType string
 	err := database.DB.QueryRow(
-		"SELECT id, title, content, created_at, updated_at FROM notes WHERE id = ?",
+		"SELECT id, user_id, title, content, pinned, content_type, created_at, updated_at FROM notes WHERE id = ?",
 		id,
-	).Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.UpdatedAt)
+	).Scan(&note.ID, &userID, &note.Title, &note.Content, &pinnedInt, &contentType, &note.CreatedAt, &note.UpdatedAt)
 
 	if err != nil {
 		return nil, err
 	}
+
+	if userID.Valid {
+		v := int(userID.Int64)
+		note.UserID = &v
+	}
+	note.Pinned = pinnedInt != 0
+	note.ContentType = contentType
 
 	// 清理 content 字段（只清理 [object Object] 字符串）
 	note.Content = cleanContent(note.Content)
@@ -182,13 +240,20 @@ func GetNote(id int) (*Note, error) {
 	}
 	note.Tags = tags
 
+	// 获取附件
+	resources, err := GetResourcesByNoteID(id)
+	if err != nil {
+		return nil, err
+	}
+	note.Resources = resources
+
 	return note, nil
 }
 
 // GetAllNotes 获取所有笔记
 func GetAllNotes() ([]Note, error) {
 	rows, err := database.DB.Query(
-		"SELECT id, title, content, created_at, updated_at FROM notes ORDER BY created_at DESC",
+		"SELECT id, user_id, title, content, pinned, content_type, created_at, updated_at FROM notes ORDER BY created_at DESC",
 	)
 	if err != nil {
 		return nil, err
@@ -198,10 +263,20 @@ func GetAllNotes() ([]Note, error) {
 	var notes []Note
 	for rows.Next() {
 		var note Note
-		err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.UpdatedAt)
+		var userID sql.NullInt64
+		var pinnedInt int
+		var contentType string
+		err := rows.Scan(&note.ID, &userID, &note.Title, &note.Content, &pinnedInt, &contentType, &note.CreatedAt, &note.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
+
+		if userID.Valid {
+			v := int(userID.Int64)
+			note.UserID = &v
+		}
+		note.Pinned = pinnedInt != 0
+		note.ContentType = contentType
 
 		// 清理 content 和 title 字段（只清理 [object Object] 字符串）
 		note.Content = cleanContent(note.Content)
@@ -219,6 +294,13 @@ func GetAllNotes() ([]Note, error) {
 			return nil, err
 		}
 		note.Tags = tags
+
+		// 获取附件（列表场景：N+1，当前规模可接受；后续可做聚合优化）
+		resources, err := GetResourcesByNoteID(note.ID)
+		if err != nil {
+			return nil, err
+		}
+		note.Resources = resources
 
 		notes = append(notes, note)
 	}
@@ -241,7 +323,7 @@ func SearchNotes(q string, limit, offset int) ([]Note, error) {
 	}
 
 	rows, err := database.DB.Query(
-		`SELECT n.id, n.title, n.content, n.created_at, n.updated_at
+		`SELECT n.id, n.user_id, n.title, n.content, n.pinned, n.content_type, n.created_at, n.updated_at
 		 FROM notes_fts f
 		 JOIN notes n ON n.id = f.rowid
 		 WHERE notes_fts MATCH ?
@@ -257,9 +339,19 @@ func SearchNotes(q string, limit, offset int) ([]Note, error) {
 	var notes []Note
 	for rows.Next() {
 		var note Note
-		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.UpdatedAt); err != nil {
+		var userID sql.NullInt64
+		var pinnedInt int
+		var contentType string
+		if err := rows.Scan(&note.ID, &userID, &note.Title, &note.Content, &pinnedInt, &contentType, &note.CreatedAt, &note.UpdatedAt); err != nil {
 			return nil, err
 		}
+
+		if userID.Valid {
+			v := int(userID.Int64)
+			note.UserID = &v
+		}
+		note.Pinned = pinnedInt != 0
+		note.ContentType = contentType
 
 		note.Content = cleanContent(note.Content)
 		note.Title = cleanContent(note.Title)
@@ -269,6 +361,12 @@ func SearchNotes(q string, limit, offset int) ([]Note, error) {
 			return nil, err
 		}
 		note.Tags = tags
+
+		resources, err := GetResourcesByNoteID(note.ID)
+		if err != nil {
+			return nil, err
+		}
+		note.Resources = resources
 		notes = append(notes, note)
 	}
 
@@ -321,7 +419,7 @@ func RandomNotes(limit int, tagName string, withinDays int) ([]Note, error) {
 
 	args := []interface{}{}
 	query := `
-		SELECT n.id, n.title, n.content, n.created_at, n.updated_at
+		SELECT n.id, n.user_id, n.title, n.content, n.pinned, n.content_type, n.created_at, n.updated_at
 		FROM notes n
 	`
 
@@ -359,9 +457,18 @@ func RandomNotes(limit int, tagName string, withinDays int) ([]Note, error) {
 	var notes []Note
 	for rows.Next() {
 		var note Note
-		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.UpdatedAt); err != nil {
+		var userID sql.NullInt64
+		var pinnedInt int
+		var contentType string
+		if err := rows.Scan(&note.ID, &userID, &note.Title, &note.Content, &pinnedInt, &contentType, &note.CreatedAt, &note.UpdatedAt); err != nil {
 			return nil, err
 		}
+		if userID.Valid {
+			v := int(userID.Int64)
+			note.UserID = &v
+		}
+		note.Pinned = pinnedInt != 0
+		note.ContentType = contentType
 		note.Content = cleanContent(note.Content)
 		note.Title = cleanContent(note.Title)
 		tags, err := GetTagsByNoteID(note.ID)
@@ -369,6 +476,12 @@ func RandomNotes(limit int, tagName string, withinDays int) ([]Note, error) {
 			return nil, err
 		}
 		note.Tags = tags
+
+		resources, err := GetResourcesByNoteID(note.ID)
+		if err != nil {
+			return nil, err
+		}
+		note.Resources = resources
 		notes = append(notes, note)
 	}
 
