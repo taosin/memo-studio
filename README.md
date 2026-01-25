@@ -146,6 +146,30 @@ docker run -d \
   ghcr.io/<你的GitHub用户名>/<仓库名>:latest
 ```
 
+## 同步发布到 Docker Hub（可选）
+
+很多 NAS 更习惯从 Docker Hub 拉取镜像。本仓库工作流已支持在打 tag 时**同步推送 Docker Hub**，前提是你配置好 Secrets：
+
+在 GitHub 仓库 `Settings → Secrets and variables → Actions` 添加：
+- **`DOCKERHUB_USERNAME`**：你的 Docker Hub 用户名
+- **`DOCKERHUB_TOKEN`**：Docker Hub Access Token（建议用 token，不要用密码）
+
+发布后 Docker Hub 镜像名规则：
+- `docker.io/<DOCKERHUB_USERNAME>/<仓库名>:latest`
+- `docker.io/<DOCKERHUB_USERNAME>/<仓库名>:v0.1.0`
+
+别人部署示例：
+
+```bash
+docker run -d \
+  --name memo-studio \
+  -p 9000:9000 \
+  -v memo_data:/data \
+  -e MEMO_JWT_SECRET="please-change-me" \
+  -e MEMO_ADMIN_PASSWORD="your-strong-password" \
+  docker.io/<你的DockerHub用户名>/<仓库名>:latest
+```
+
 ### 手动启动
 
 #### 1. 启动后端
