@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { api } from '$lib/api.js';
   import { buildHeatmap, heatColor } from '$lib/heatmap.js';
 
@@ -105,6 +105,19 @@
     }
   }
 
+  function scheduleSearch() {
+    // 注意：不要用 `$:` 里读写 debounceTimer，会造成自触发循环导致闪烁/崩溃
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      doSearch();
+    }, 300);
+  }
+
+  function clearSearch() {
+    searchQ = '';
+    scheduleSearch();
+  }
+
   async function randomReview() {
     loading = true;
     error = '';
@@ -176,13 +189,9 @@
     return ns.includes(selectedTag);
   });
 
-  // debounce 搜索：输入停止 300ms 自动触发（空则恢复列表）
-  $: if (searchQ !== undefined) {
+  onDestroy(() => {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      doSearch();
-    }, 300);
-  }
+  });
 
   onMount(async () => {
     await reload();
@@ -270,9 +279,10 @@
         class="search"
         bind:value={searchQ}
         placeholder="全文搜索（FTS5）… 输入即搜 / Enter 立即搜"
+        on:input={scheduleSearch}
         on:keydown={(e) => e.key === 'Enter' && doSearch()}
       />
-      <button class="btn ghost" on:click={() => { searchQ = ''; }} disabled={loading}>清空</button>
+      <button class="btn ghost" on:click={clearSearch} disabled={loading}>清空</button>
       <button class="btn ghost" on:click={doSearch} disabled={loading}>搜索</button>
       <button class="btn ghost" on:click={reload} disabled={loading}>刷新</button>
     </div>
@@ -323,8 +333,19 @@
 </div>
 
 {#if reviewOpen}
-  <div class="overlay" role="button" tabindex="0" on:click={() => (reviewOpen = false)}>
-    <div class="dialog" on:click|stopPropagation>
+  <div
+    class="overlay"
+    role="button"
+    tabindex="0"
+    on:click={(e) => e.target === e.currentTarget && (reviewOpen = false)}
+    on:keydown={(e) => e.key === 'Escape' && (reviewOpen = false)}
+  >
+    <div
+      class="dialog"
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+    >
       <div class="dialogTitle">随机回顾</div>
       <div class="dialogBody">{reviewText}</div>
       <div class="dialogActions">
@@ -336,8 +357,19 @@
 {/if}
 
 {#if editOpen}
-  <div class="overlay" role="button" tabindex="0" on:click={() => (editOpen = false)}>
-    <div class="dialog" on:click|stopPropagation>
+  <div
+    class="overlay"
+    role="button"
+    tabindex="0"
+    on:click={(e) => e.target === e.currentTarget && (editOpen = false)}
+    on:keydown={(e) => e.key === 'Escape' && (editOpen = false)}
+  >
+    <div
+      class="dialog"
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+    >
       <div class="dialogTitle">编辑笔记</div>
       <textarea
         class="dialogInput"
