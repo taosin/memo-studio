@@ -4,6 +4,7 @@
   import { buildHeatmap, heatColor } from '$lib/heatmap.js';
   import { renderMiniMarkdown } from '$lib/miniMarkdown.js';
   import { notesStore, tagsStore } from '$lib/stores.js';
+  import { goto } from '$app/navigation';
 
   let input = '';
   let baseNotes = [];
@@ -200,6 +201,18 @@
   });
 
   onMount(async () => {
+    // 未登录：跳转登录页
+    try {
+      const t = localStorage.getItem('token') || '';
+      if (!t) {
+        await goto('/login');
+        return;
+      }
+    } catch {
+      await goto('/login');
+      return;
+    }
+
     // 恢复草稿
     try {
       const draft = localStorage.getItem('memo_draft_v1') || '';

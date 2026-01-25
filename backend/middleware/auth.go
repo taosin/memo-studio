@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"memo-studio/backend/models"
 	"memo-studio/backend/utils"
 	"strings"
 
@@ -37,7 +38,33 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 将用户信息存储到上下文
 		c.Set("userID", claims.UserID)
 		c.Set("username", claims.Username)
+		// 兼容旧 token：如果 claim 未带 is_admin，则从 DB 兜底一次
+		isAdmin := claims.IsAdmin
+		if !isAdmin {
+			if u, err := models.GetUserByID(claims.UserID); err == nil {
+				isAdmin = u.IsAdmin
+			}
+		}
+		c.Set("isAdmin", isAdmin)
 
+		c.Next()
+	}
+}
+
+// AdminOnly 需要管理员权限
+func AdminOnly() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		v, ok := c.Get("isAdmin")
+		if !ok {
+			c.JSON(http.StatusForbidden, gin.H{"error": "无权限"})
+			c.Abort()
+			return
+		}
+		if b, ok := v.(bool); !ok || !b {
+			c.JSON(http.StatusForbidden, gin.H{"error": "无权限"})
+			c.Abort()
+			return
+		}
 		c.Next()
 	}
 }

@@ -78,6 +78,10 @@ func main() {
 	api.Use(middleware.AuthMiddleware())
 	{
 		api.GET("/auth/me", handlers.GetCurrentUser)
+		// 用户信息（新接口）
+		api.GET("/users/me", handlers.GetMe)
+		api.PUT("/users/me", handlers.UpdateMe)
+		api.PUT("/users/me/password", handlers.ChangeMyPassword)
 
 		// memos（新接口：需要登录）
 		api.GET("/memos", handlers.ListMemos)
@@ -87,6 +91,16 @@ func main() {
 
 		// resources（附件上传）
 		api.POST("/resources", handlers.UploadResource)
+
+		// 用户管理（管理员）
+		admin := api.Group("/users")
+		admin.Use(middleware.AdminOnly())
+		{
+			admin.GET("", handlers.AdminListUsers)
+			admin.POST("", handlers.AdminCreateUser)
+			admin.PUT("/:id", handlers.AdminUpdateUser)
+			admin.DELETE("/:id", handlers.AdminDeleteUser)
+		}
 	}
 
 	// 静态文件托管（用于部署：Go 服务直接提供前端）

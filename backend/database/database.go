@@ -7,8 +7,10 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var DB *sql.DB
@@ -94,6 +96,17 @@ func runMigrations() error {
 			return err
 		}
 		ver = 3
+	}
+
+	// v4：users 增加 is_admin，并初始化默认管理员
+	if ver < 4 {
+		if err := ensureUsersAdminV4(ctx, conn); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, `PRAGMA user_version = 4;`); err != nil {
+			return err
+		}
+		ver = 4
 	}
 
 	return nil
@@ -292,6 +305,37 @@ func ensureResourcesSchemaV3(ctx context.Context, conn *sql.Conn) error {
 		return err
 	}
 	return nil
+}
+
+func ensureUsersAdminV4(ctx context.Context, conn *sql.Conn) error {
+	// is_admin 列
+	if ok, err := columnExists(ctx, conn, "users", "is_admin"); err != nil {
+		return err
+	} else if !ok {
+		if _, err := conn.ExecContext(ctx, `ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0;`); err != nil {
+			return err
+		}
+	}
+
+	// 默认管理员：admin/admin123
+	// - 若已有 admin 用户则不覆盖
+	var cnt int
+	if err := conn.QueryRowContext(ctx, `SELECT COUNT(1) FROM users WHERE username = 'admin'`).Scan(&cnt); err != nil {
+		return err
+	}
+	if cnt > 0 {
+		return nil
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	_, err = conn.ExecContext(ctx,
+		`INSERT INTO users (username, password, email, created_at, is_admin) VALUES (?, ?, ?, ?, 1)`,
+		"admin", string(hashed), "", time.Now().Format("2006-01-02 15:04:05"),
+	)
+	return err
 }
 
 func columnExists(ctx context.Context, conn *sql.Conn, table, column string) (bool, error) {

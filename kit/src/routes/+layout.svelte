@@ -1,12 +1,33 @@
 <script>
   import { onMount } from 'svelte';
+  import { afterNavigate } from '$app/navigation';
   import { theme, applyTheme, toggleTheme } from '$lib/theme.js';
+  import { api } from '$lib/api.js';
 
   let current = 'dark';
+  let authed = false;
+  let isAdmin = false;
   const unsub = theme.subscribe((t) => {
     current = t;
     applyTheme(t);
   });
+
+  function syncAuth() {
+    try {
+      const t = localStorage.getItem('token');
+      authed = !!t;
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      isAdmin = !!u?.is_admin;
+    } catch {
+      authed = false;
+      isAdmin = false;
+    }
+  }
+
+  async function logout() {
+    await api.logout();
+    syncAuth();
+  }
 
   onMount(() => {
     applyTheme(current);
@@ -14,7 +35,16 @@
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
       navigator.serviceWorker.register('/service-worker.js').catch(() => {});
     }
-    return () => unsub();
+
+    syncAuth();
+    // SPA 内登录后跳转不会重建 layout，这里用导航钩子+storage 事件同步
+    afterNavigate(() => syncAuth());
+    window.addEventListener('storage', syncAuth);
+
+    return () => {
+      window.removeEventListener('storage', syncAuth);
+      unsub();
+    };
   });
 </script>
 
@@ -27,6 +57,15 @@
     <div class="brand">Memo Studio</div>
     <div class="hint">极简记录 · Ctrl/Cmd + Enter 保存</div>
     <div class="spacer" />
+    {#if authed}
+      <a class="nav" href="/profile">个人信息</a>
+      {#if isAdmin}
+        <a class="nav" href="/admin/users">用户管理</a>
+      {/if}
+      <button class="navBtn" on:click={logout}>登出</button>
+    {:else}
+      <a class="nav" href="/login">登录</a>
+    {/if}
     <button class="iconBtn" on:click={toggleTheme} aria-label="切换主题" title="切换主题">
       {#if current === 'dark'}
         <span class="icon">🌙</span>
@@ -121,6 +160,30 @@
   }
   .icon {
     font-size: 14px;
+  }
+  .nav {
+    font-size: 12px;
+    color: inherit;
+    text-decoration: none;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .nav:hover {
+    filter: brightness(1.02);
+  }
+  .navBtn {
+    font-size: 12px;
+    color: inherit;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    cursor: pointer;
+  }
+  .navBtn:hover {
+    filter: brightness(1.02);
   }
   .main {
     padding: 16px;
