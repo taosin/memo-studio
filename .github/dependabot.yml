@@ -1,3 +1,4 @@
+# touch: trigger dependabot re-scan
 version: 2
 updates:
   # Go modules (backend)
