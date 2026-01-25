@@ -58,16 +58,16 @@ func createTables() error {
 
 	notesFTSTriggers := []string{
 		// 新增
-		`CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
+		`CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN
 			INSERT INTO notes_fts(rowid, content, note_id) VALUES (new.id, COALESCE(new.content, ''), new.id);
 		END;`,
-		// 删除（FTS5 推荐用 delete 命令）
-		`CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
-			INSERT INTO notes_fts(notes_fts, rowid, content, note_id) VALUES('delete', old.id, COALESCE(old.content, ''), old.id);
+		// 删除（直接 DELETE，避免特殊语法兼容问题）
+		`CREATE TRIGGER notes_ad AFTER DELETE ON notes BEGIN
+			DELETE FROM notes_fts WHERE rowid = old.id;
 		END;`,
-		// 更新：先 delete 再 insert
-		`CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
-			INSERT INTO notes_fts(notes_fts, rowid, content, note_id) VALUES('delete', old.id, COALESCE(old.content, ''), old.id);
+		// 更新：先删后插
+		`CREATE TRIGGER notes_au AFTER UPDATE ON notes BEGIN
+			DELETE FROM notes_fts WHERE rowid = old.id;
 			INSERT INTO notes_fts(rowid, content, note_id) VALUES (new.id, COALESCE(new.content, ''), new.id);
 		END;`,
 	}
@@ -109,6 +109,10 @@ func createTables() error {
 	if _, err := DB.Exec(notesFTSTable); err != nil {
 		return err
 	}
+	// 触发器可能会更新实现：启动时先 drop 再重建
+	_, _ = DB.Exec(`DROP TRIGGER IF EXISTS notes_ai;`)
+	_, _ = DB.Exec(`DROP TRIGGER IF EXISTS notes_ad;`)
+	_, _ = DB.Exec(`DROP TRIGGER IF EXISTS notes_au;`)
 	for _, trg := range notesFTSTriggers {
 		if _, err := DB.Exec(trg); err != nil {
 			return err

@@ -25,6 +25,9 @@ export const api = {
       body: JSON.stringify({ title: '', content, tags })
     });
   },
+  async deleteNote(id) {
+    return jsonFetch(`/notes/${id}`, { method: 'DELETE' });
+  },
   async search(q) {
     const qp = new URLSearchParams({ q: q || '', limit: '50', offset: '0' });
     return jsonFetch(`/search?${qp.toString()}`, { method: 'GET' });
