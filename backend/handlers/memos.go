@@ -170,7 +170,7 @@ func CreateMemo(c *gin.Context) {
 		if tagName == "" {
 			continue
 		}
-		tag, err := models.CreateTagIfNotExists(tagName)
+		tag, err := models.CreateTagIfNotExists(tagName, userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建标签失败: " + err.Error()})
 			return
@@ -234,7 +234,7 @@ func UpdateMemo(c *gin.Context) {
 		if tagName == "" {
 			continue
 		}
-		tag, err := models.CreateTagIfNotExists(tagName)
+		tag, err := models.CreateTagIfNotExists(tagName, userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建标签失败: " + err.Error()})
 			return

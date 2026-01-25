@@ -15,6 +15,7 @@ type User struct {
 	Username  string    `json:"username"`
 	Email     string    `json:"email"`
 	IsAdmin   bool      `json:"is_admin"`
+	MustChangePassword bool `json:"must_change_password"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -47,9 +48,9 @@ func GetUserByUsername(username string) (*User, error) {
 	user := &User{}
 	var password string
 	err := database.DB.QueryRow(
-		"SELECT id, username, password, email, is_admin, created_at FROM users WHERE username = ?",
+		"SELECT id, username, password, email, is_admin, must_change_password, created_at FROM users WHERE username = ?",
 		username,
-	).Scan(&user.ID, &user.Username, &password, &user.Email, &user.IsAdmin, &user.CreatedAt)
+	).Scan(&user.ID, &user.Username, &password, &user.Email, &user.IsAdmin, &user.MustChangePassword, &user.CreatedAt)
 
 	if err != nil {
 		return nil, err
@@ -63,9 +64,9 @@ func GetUserByUsername(username string) (*User, error) {
 func GetUserByID(id int) (*User, error) {
 	user := &User{}
 	err := database.DB.QueryRow(
-		"SELECT id, username, email, is_admin, created_at FROM users WHERE id = ?",
+		"SELECT id, username, email, is_admin, must_change_password, created_at FROM users WHERE id = ?",
 		id,
-	).Scan(&user.ID, &user.Username, &user.Email, &user.IsAdmin, &user.CreatedAt)
+	).Scan(&user.ID, &user.Username, &user.Email, &user.IsAdmin, &user.MustChangePassword, &user.CreatedAt)
 
 	if err != nil {
 		return nil, err
@@ -80,12 +81,13 @@ func VerifyPassword(username, password string) (*User, error) {
 	var hashedPassword string
 	var email string
 	var isAdmin bool
+	var mustChange bool
 	var createdAt time.Time
 
 	err := database.DB.QueryRow(
-		"SELECT id, password, email, is_admin, created_at FROM users WHERE username = ?",
+		"SELECT id, password, email, is_admin, must_change_password, created_at FROM users WHERE username = ?",
 		username,
-	).Scan(&userID, &hashedPassword, &email, &isAdmin, &createdAt)
+	).Scan(&userID, &hashedPassword, &email, &isAdmin, &mustChange, &createdAt)
 
 	if err != nil {
 		return nil, err
@@ -102,6 +104,7 @@ func VerifyPassword(username, password string) (*User, error) {
 		Username:  username,
 		Email:     email,
 		IsAdmin:   isAdmin,
+		MustChangePassword: mustChange,
 		CreatedAt: createdAt,
 	}, nil
 }
@@ -139,6 +142,9 @@ func ChangePassword(userID int, oldPassword, newPassword string) error {
 		return err
 	}
 	_, err = database.DB.Exec("UPDATE users SET password = ? WHERE id = ?", string(newHashed), userID)
+	if err == nil {
+		_, _ = database.DB.Exec("UPDATE users SET must_change_password = 0 WHERE id = ?", userID)
+	}
 	return err
 }
 
@@ -181,7 +187,7 @@ func AdminCreateUser(in CreateUserInput) (*User, error) {
 }
 
 func AdminListUsers() ([]User, error) {
-	rows, err := database.DB.Query("SELECT id, username, email, is_admin, created_at FROM users ORDER BY id ASC")
+	rows, err := database.DB.Query("SELECT id, username, email, is_admin, must_change_password, created_at FROM users ORDER BY id ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +195,7 @@ func AdminListUsers() ([]User, error) {
 	var list []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.IsAdmin, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.IsAdmin, &u.MustChangePassword, &u.CreatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, u)

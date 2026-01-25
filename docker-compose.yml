@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  memo-studio:
+    build: .
+    image: memo-studio:local
+    ports:
+      - "9000:9000"
+    environment:
+      # 必填：生产请务必设置
+      MEMO_JWT_SECRET: "change-me"
+      # 推荐：用于初始化/重置管理员密码（不设置则首次启动会随机生成并打印到日志）
+      MEMO_ADMIN_PASSWORD: ""
+      # 可选：前端域名（逗号分隔），不填默认放开
+      MEMO_CORS_ORIGINS: ""
+      PORT: "9000"
+      MEMO_DB_PATH: "/data/notes.db"
+      MEMO_STORAGE_DIR: "/data/storage"
+      GIN_MODE: "release"
+      MEMO_ENV: "production"
+    volumes:
+      - memo_data:/data
+    restart: unless-stopped
+
+volumes:
+  memo_data:
+

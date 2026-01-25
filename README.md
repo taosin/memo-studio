@@ -58,6 +58,68 @@ start.bat
 - Go 构建时启用了 `sqlite_fts5` build tag（用于 SQLite FTS5）
 - SvelteKit 构建产物会同步到 `backend/public/`，并由 Go 在运行时托管（SPA fallback 到 `index.html`）
 
+## Docker 发布/自部署（推荐）
+
+目标：别人可以 `docker run` 或 `docker compose up` 在 NAS/服务器上自部署，并且数据可持久化。
+
+### 1) 最小可运行（docker run）
+
+必填环境变量：
+- **`MEMO_JWT_SECRET`**：JWT 密钥（生产必须设置，建议 32+ 字符）
+
+推荐环境变量：
+- **`MEMO_ADMIN_PASSWORD`**：用于初始化/重置管理员 `admin` 的密码（不设置则首次启动会随机生成并打印到容器日志）
+- **`MEMO_CORS_ORIGINS`**：允许的前端域名（逗号分隔），例如 `https://your.domain,https://nas.local`
+
+容器数据目录：
+- **`/data/notes.db`**：SQLite 数据库（通过 `MEMO_DB_PATH` 指定）
+- **`/data/storage`**：附件目录（通过 `MEMO_STORAGE_DIR` 指定）
+
+示例：
+
+```bash
+docker run -d \
+  --name memo-studio \
+  -p 9000:9000 \
+  -v memo_data:/data \
+  -e MEMO_JWT_SECRET="please-change-me" \
+  -e MEMO_ADMIN_PASSWORD="your-strong-password" \
+  -e MEMO_ENV=production \
+  -e GIN_MODE=release \
+  memo-studio:local
+```
+
+启动后访问：`http://localhost:9000`
+
+默认管理员用户名：`admin`
+
+### 2) docker compose（最推荐）
+
+直接使用仓库根目录的 `docker-compose.yml`：
+
+```bash
+docker compose up -d --build
+```
+
+### 3) 首次管理员策略（重要）
+
+- 生产环境**不再固定** `admin/admin123`
+- 若设置了 `MEMO_ADMIN_PASSWORD`：启动时会确保 `admin` 存在并重置密码，同时标记“需要修改密码”
+- 若没设置且数据库为空：启动会生成随机初始密码，并打印到日志（请登录后立即修改）
+
+### 4) 生产配置（环境变量）
+
+- **`PORT`**：监听端口（默认 9000）
+- **`MEMO_DB_PATH`**：SQLite 路径（默认 `./notes.db`；容器建议 `/data/notes.db`）
+- **`MEMO_STORAGE_DIR`**：附件目录（默认 `./storage`；容器建议 `/data/storage`）
+- **`MEMO_CORS_ORIGINS`**：CORS 白名单（逗号分隔；不填默认放开）
+- **`MEMO_JWT_SECRET`**：JWT 密钥（生产必须设置）
+
+### 5) 多架构镜像（NAS 兼容）
+
+建议发布 `linux/amd64` 与 `linux/arm64` 两种架构镜像（群晖/威联通/树莓派常用）。
+后续可以用 GitHub Actions + buildx 自动构建并推送到 Docker Hub/GHCR。
+
 ### 手动启动
 
 #### 1. 启动后端

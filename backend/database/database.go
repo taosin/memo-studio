@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"fmt"
 	"log"
@@ -107,6 +108,28 @@ func runMigrations() error {
 			return err
 		}
 		ver = 4
+	}
+
+	// v5：users 增加 must_change_password，并更新/修复默认管理员策略
+	if ver < 5 {
+		if err := ensureUsersBootstrapV5(ctx, conn); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, `PRAGMA user_version = 5;`); err != nil {
+			return err
+		}
+		ver = 5
+	}
+
+	// v6：tags 增加 user_id 并迁移历史数据；同时把历史 notes.user_id 迁移到管理员
+	if ver < 6 {
+		if err := ensureMultiUserIsolationV6(ctx, conn); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, `PRAGMA user_version = 6;`); err != nil {
+			return err
+		}
+		ver = 6
 	}
 
 	return nil
@@ -317,25 +340,147 @@ func ensureUsersAdminV4(ctx context.Context, conn *sql.Conn) error {
 		}
 	}
 
-	// 默认管理员：admin/admin123
-	// - 若已有 admin 用户则不覆盖
-	var cnt int
-	if err := conn.QueryRowContext(ctx, `SELECT COUNT(1) FROM users WHERE username = 'admin'`).Scan(&cnt); err != nil {
+	// v4 只做 schema，不再在这里写入默认管理员（避免固定密码）
+	return nil
+}
+
+func ensureUsersBootstrapV5(ctx context.Context, conn *sql.Conn) error {
+	// must_change_password 列
+	if ok, err := columnExists(ctx, conn, "users", "must_change_password"); err != nil {
+		return err
+	} else if !ok {
+		if _, err := conn.ExecContext(ctx, `ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;`); err != nil {
+			return err
+		}
+	}
+
+	// 规则：
+	// 1) 如果设置了 MEMO_ADMIN_PASSWORD：确保 admin 存在并重置为该密码，同时强制 must_change_password=1
+	// 2) 如果没有任何用户：创建 admin，并随机生成密码（打印到日志），强制 must_change_password=1
+	// 3) 如果已存在 admin 且其密码仍等于旧默认 admin123：记录警告并强制 must_change_password=1
+
+	adminPassword := strings.TrimSpace(os.Getenv("MEMO_ADMIN_PASSWORD"))
+
+	// 是否有用户
+	var userCount int
+	if err := conn.QueryRowContext(ctx, `SELECT COUNT(1) FROM users`).Scan(&userCount); err != nil {
 		return err
 	}
-	if cnt > 0 {
+
+	// 查 admin
+	var adminID int
+	var adminHash string
+	err := conn.QueryRowContext(ctx, `SELECT id, password FROM users WHERE username = 'admin' LIMIT 1`).Scan(&adminID, &adminHash)
+	adminExists := err == nil
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	setAdminPassword := func(pw string) (string, error) {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+		if err != nil {
+			return "", err
+		}
+		return string(hashed), nil
+	}
+
+	// 1) env 指定：重置/创建 admin
+	if adminPassword != "" {
+		hashed, err := setAdminPassword(adminPassword)
+		if err != nil {
+			return err
+		}
+		if adminExists {
+			_, err = conn.ExecContext(ctx,
+				`UPDATE users SET password = ?, is_admin = 1, must_change_password = 1 WHERE id = ?`,
+				hashed, adminID,
+			)
+			return err
+		}
+		_, err = conn.ExecContext(ctx,
+			`INSERT INTO users (username, password, email, created_at, is_admin, must_change_password) VALUES (?, ?, ?, ?, 1, 1)`,
+			"admin", hashed, "", time.Now().Format("2006-01-02 15:04:05"),
+		)
+		return err
+	}
+
+	// 2) 没有任何用户：创建 admin + 随机密码
+	if userCount == 0 && !adminExists {
+		pw := randomPassword(16)
+		hashed, err := setAdminPassword(pw)
+		if err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx,
+			`INSERT INTO users (username, password, email, created_at, is_admin, must_change_password) VALUES (?, ?, ?, ?, 1, 1)`,
+			"admin", hashed, "", time.Now().Format("2006-01-02 15:04:05"),
+		); err != nil {
+			return err
+		}
+		log.Printf("[BOOTSTRAP] 已创建默认管理员 admin，初始密码：%s（请登录后立即修改；或设置 MEMO_ADMIN_PASSWORD 覆盖）", pw)
 		return nil
 	}
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
-	if err != nil {
-		return err
+	// 3) 仍为旧默认：admin123
+	if adminExists {
+		if bcrypt.CompareHashAndPassword([]byte(adminHash), []byte("admin123")) == nil {
+			log.Printf("[SECURITY] 检测到 admin 仍使用旧默认密码 admin123，建议设置 MEMO_ADMIN_PASSWORD 并登录后修改密码")
+			_, _ = conn.ExecContext(ctx, `UPDATE users SET must_change_password = 1 WHERE id = ?`, adminID)
+		}
 	}
-	_, err = conn.ExecContext(ctx,
-		`INSERT INTO users (username, password, email, created_at, is_admin) VALUES (?, ?, ?, ?, 1)`,
-		"admin", string(hashed), "", time.Now().Format("2006-01-02 15:04:05"),
-	)
-	return err
+
+	return nil
+}
+
+func randomPassword(n int) string {
+	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*"
+	if n <= 0 {
+		n = 16
+	}
+	b := make([]byte, n)
+	// crypto/rand 失败时退化为时间戳（仍可用，但会打印警告）
+	for i := range b {
+		idx := int(time.Now().UnixNano()) % len(alphabet)
+		b[i] = alphabet[idx]
+	}
+	// 尽量使用 crypto/rand 提升随机性
+	if _, err := rand.Read(b); err == nil {
+		for i := range b {
+			b[i] = alphabet[int(b[i])%len(alphabet)]
+		}
+	} else {
+		log.Printf("[SECURITY] crypto/rand 不可用，已使用弱随机生成初始密码，请尽快修改")
+	}
+	return string(b)
+}
+
+func ensureMultiUserIsolationV6(ctx context.Context, conn *sql.Conn) error {
+	// tags.user_id
+	if ok, err := columnExists(ctx, conn, "tags", "user_id"); err != nil {
+		return err
+	} else if !ok {
+		if _, err := conn.ExecContext(ctx, `ALTER TABLE tags ADD COLUMN user_id INTEGER;`); err != nil {
+			return err
+		}
+	}
+	// per-user unique（SQLite 允许多个 NULL，因此 public tags（user_id NULL）仍可存在）
+	_, _ = conn.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_user_name ON tags(user_id, name);`)
+
+	// 找到一个“主用户”用于迁移旧数据（优先管理员）
+	var primaryUserID int
+	err := conn.QueryRowContext(ctx, `SELECT id FROM users WHERE is_admin = 1 ORDER BY id ASC LIMIT 1`).Scan(&primaryUserID)
+	if err == sql.ErrNoRows {
+		err = conn.QueryRowContext(ctx, `SELECT id FROM users ORDER BY id ASC LIMIT 1`).Scan(&primaryUserID)
+	}
+	if err != nil {
+		// 没有用户：跳过迁移（后续注册后会有新数据）
+		return nil
+	}
+
+	// 把历史 notes/tags 的 NULL user_id 迁移到主用户（避免“所有人共享数据”）
+	_, _ = conn.ExecContext(ctx, `UPDATE notes SET user_id = ? WHERE user_id IS NULL;`, primaryUserID)
+	_, _ = conn.ExecContext(ctx, `UPDATE tags SET user_id = ? WHERE user_id IS NULL;`, primaryUserID)
+	return nil
 }
 
 func columnExists(ctx context.Context, conn *sql.Conn, table, column string) (bool, error) {

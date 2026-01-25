@@ -165,6 +165,13 @@ func CreateNote(c *gin.Context) {
 		return
 	}
 
+	uidAny, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
+		return
+	}
+	userID := uidAny.(int)
+
 	// 规范化 title 和 content 为字符串
 	title := normalizeString(req.Title)
 	content := normalizeString(req.Content)
@@ -185,7 +192,7 @@ func CreateNote(c *gin.Context) {
 		if tagName == "" {
 			continue
 		}
-		tag, err := models.CreateTagIfNotExists(tagName)
+		tag, err := models.CreateTagIfNotExists(tagName, userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建标签失败: " + err.Error()})
 			return
@@ -194,7 +201,7 @@ func CreateNote(c *gin.Context) {
 	}
 
 	// 创建笔记（旧接口：默认 markdown、不置顶、无附件、无 user_id）
-	note, err := models.CreateNote(title, content, tagIDs, false, "markdown", nil, nil)
+	note, err := models.CreateNote(title, content, tagIDs, false, "markdown", nil, &userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建笔记失败: " + err.Error()})
 		return
@@ -210,6 +217,13 @@ func UpdateNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的笔记ID"})
 		return
 	}
+
+	uidAny, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
+		return
+	}
+	userID := uidAny.(int)
 
 	var req UpdateNoteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -244,7 +258,7 @@ func UpdateNote(c *gin.Context) {
 		if tagName == "" {
 			continue
 		}
-		tag, err := models.CreateTagIfNotExists(tagName)
+		tag, err := models.CreateTagIfNotExists(tagName, userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建标签失败: " + err.Error()})
 			return
@@ -310,9 +324,15 @@ func DeleteNotes(c *gin.Context) {
 
 // GetTags 获取所有标签
 func GetTags(c *gin.Context) {
+	uidAny, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
+		return
+	}
+	userID := uidAny.(int)
 	// withCount=1 时返回包含计数的标签列表（给侧边栏用）
 	if c.Query("withCount") == "1" {
-		tags, err := models.GetTagsWithCount()
+		tags, err := models.GetTagsWithCount(userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取标签列表失败: " + err.Error()})
 			return
@@ -324,7 +344,7 @@ func GetTags(c *gin.Context) {
 		return
 	}
 
-	tags, err := models.GetAllTags()
+	tags, err := models.GetAllTags(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取标签列表失败: " + err.Error()})
 		return
@@ -340,6 +360,12 @@ func GetTags(c *gin.Context) {
 
 // CreateTag 创建标签
 func CreateTag(c *gin.Context) {
+	uidAny, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
+		return
+	}
+	userID := uidAny.(int)
 	var req CreateTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误: " + err.Error()})
@@ -350,7 +376,7 @@ func CreateTag(c *gin.Context) {
 		return
 	}
 
-	tag, err := models.CreateTagIfNotExists(strings.TrimSpace(req.Name))
+	tag, err := models.CreateTagIfNotExists(strings.TrimSpace(req.Name), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建标签失败: " + err.Error()})
 		return

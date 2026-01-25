@@ -24,6 +24,7 @@ type Note struct {
 
 type Tag struct {
 	ID        int       `json:"id"`
+	UserID    *int      `json:"user_id,omitempty"`
 	Name      string    `json:"name"`
 	Color     string    `json:"color"`
 	CreatedAt time.Time `json:"created_at"`
@@ -31,6 +32,7 @@ type Tag struct {
 
 type TagWithCount struct {
 	ID        int       `json:"id"`
+	UserID    *int      `json:"user_id,omitempty"`
 	Name      string    `json:"name"`
 	Color     string    `json:"color"`
 	CreatedAt time.Time `json:"created_at"`
@@ -374,13 +376,15 @@ func SearchNotes(q string, limit, offset int) ([]Note, error) {
 }
 
 // GetTagsWithCount 获取标签列表（包含笔记计数）
-func GetTagsWithCount() ([]TagWithCount, error) {
+func GetTagsWithCount(userID int) ([]TagWithCount, error) {
 	rows, err := database.DB.Query(
-		`SELECT t.id, t.name, t.color, t.created_at, COUNT(nt.note_id) AS note_count
+		`SELECT t.id, t.user_id, t.name, t.color, t.created_at, COUNT(nt.note_id) AS note_count
 		 FROM tags t
 		 LEFT JOIN note_tags nt ON t.id = nt.tag_id
+		 WHERE t.user_id = ?
 		 GROUP BY t.id
 		 ORDER BY note_count DESC, t.created_at DESC`,
+		userID,
 	)
 	if err != nil {
 		return nil, err
@@ -390,8 +394,13 @@ func GetTagsWithCount() ([]TagWithCount, error) {
 	var tags []TagWithCount
 	for rows.Next() {
 		var t TagWithCount
-		if err := rows.Scan(&t.ID, &t.Name, &t.Color, &t.CreatedAt, &t.NoteCount); err != nil {
+		var uid sql.NullInt64
+		if err := rows.Scan(&t.ID, &uid, &t.Name, &t.Color, &t.CreatedAt, &t.NoteCount); err != nil {
 			return nil, err
+		}
+		if uid.Valid {
+			v := int(uid.Int64)
+			t.UserID = &v
 		}
 		tags = append(tags, t)
 	}
@@ -399,20 +408,20 @@ func GetTagsWithCount() ([]TagWithCount, error) {
 }
 
 // GetTagByName 根据名称获取标签
-func GetTagByName(name string) (*Tag, error) {
+func GetTagByNameForUser(name string, userID int) (*Tag, error) {
 	var tag Tag
 	err := database.DB.QueryRow(
-		"SELECT id, name, color, created_at FROM tags WHERE name = ?",
-		name,
-	).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.CreatedAt)
+		"SELECT id, user_id, name, color, created_at FROM tags WHERE user_id = ? AND name = ?",
+		userID, name,
+	).Scan(&tag.ID, &tag.UserID, &tag.Name, &tag.Color, &tag.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return &tag, nil
 }
 
-// RandomNotes 随机回顾笔记（可按标签过滤，可按天数过滤）
-func RandomNotes(limit int, tagName string, withinDays int) ([]Note, error) {
+// RandomNotes 随机回顾笔记（按用户隔离，可按标签过滤，可按天数过滤）
+func RandomNotes(userID int, limit int, tagName string, withinDays int) ([]Note, error) {
 	if limit <= 0 || limit > 20 {
 		limit = 1
 	}
@@ -424,10 +433,12 @@ func RandomNotes(limit int, tagName string, withinDays int) ([]Note, error) {
 	`
 
 	where := " WHERE 1=1 "
+	where += " AND n.user_id = ? "
+	args = append(args, userID)
 
 	if strings.TrimSpace(tagName) != "" {
 		// tagName -> tag_id
-		tag, err := GetTagByName(strings.TrimSpace(tagName))
+		tag, err := GetTagByNameForUser(strings.TrimSpace(tagName), userID)
 		if err != nil {
 			// 没有该标签：直接返回空
 			if err == sql.ErrNoRows {
@@ -491,7 +502,7 @@ func RandomNotes(limit int, tagName string, withinDays int) ([]Note, error) {
 // GetTagsByNoteID 获取笔记的标签
 func GetTagsByNoteID(noteID int) ([]Tag, error) {
 	rows, err := database.DB.Query(
-		`SELECT t.id, t.name, t.color, t.created_at 
+		`SELECT t.id, t.user_id, t.name, t.color, t.created_at 
 		 FROM tags t 
 		 INNER JOIN note_tags nt ON t.id = nt.tag_id 
 		 WHERE nt.note_id = ?`,
@@ -505,9 +516,14 @@ func GetTagsByNoteID(noteID int) ([]Tag, error) {
 	var tags []Tag
 	for rows.Next() {
 		var tag Tag
-		err := rows.Scan(&tag.ID, &tag.Name, &tag.Color, &tag.CreatedAt)
+		var uid sql.NullInt64
+		err := rows.Scan(&tag.ID, &uid, &tag.Name, &tag.Color, &tag.CreatedAt)
 		if err != nil {
 			return nil, err
+		}
+		if uid.Valid {
+			v := int(uid.Int64)
+			tag.UserID = &v
 		}
 		tags = append(tags, tag)
 	}
@@ -516,9 +532,10 @@ func GetTagsByNoteID(noteID int) ([]Tag, error) {
 }
 
 // GetAllTags 获取所有标签
-func GetAllTags() ([]Tag, error) {
+func GetAllTags(userID int) ([]Tag, error) {
 	rows, err := database.DB.Query(
-		"SELECT id, name, color, created_at FROM tags ORDER BY created_at DESC",
+		"SELECT id, user_id, name, color, created_at FROM tags WHERE user_id = ? ORDER BY created_at DESC",
+		userID,
 	)
 	if err != nil {
 		return nil, err
@@ -528,9 +545,14 @@ func GetAllTags() ([]Tag, error) {
 	var tags []Tag
 	for rows.Next() {
 		var tag Tag
-		err := rows.Scan(&tag.ID, &tag.Name, &tag.Color, &tag.CreatedAt)
+		var uid sql.NullInt64
+		err := rows.Scan(&tag.ID, &uid, &tag.Name, &tag.Color, &tag.CreatedAt)
 		if err != nil {
 			return nil, err
+		}
+		if uid.Valid {
+			v := int(uid.Int64)
+			tag.UserID = &v
 		}
 		tags = append(tags, tag)
 	}
@@ -542,9 +564,9 @@ func GetAllTags() ([]Tag, error) {
 func GetTagByID(id int) (*Tag, error) {
 	var tag Tag
 	err := database.DB.QueryRow(
-		"SELECT id, name, color, created_at FROM tags WHERE id = ?",
+		"SELECT id, user_id, name, color, created_at FROM tags WHERE id = ?",
 		id,
-	).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.CreatedAt)
+	).Scan(&tag.ID, &tag.UserID, &tag.Name, &tag.Color, &tag.CreatedAt)
 
 	if err != nil {
 		return nil, err
@@ -554,19 +576,19 @@ func GetTagByID(id int) (*Tag, error) {
 }
 
 // CreateTagIfNotExists 如果标签不存在则创建
-func CreateTagIfNotExists(name string) (*Tag, error) {
+func CreateTagIfNotExists(name string, userID int) (*Tag, error) {
 	// 先查找是否存在
 	var tag Tag
 	err := database.DB.QueryRow(
-		"SELECT id, name, color, created_at FROM tags WHERE name = ?",
-		name,
-	).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.CreatedAt)
+		"SELECT id, user_id, name, color, created_at FROM tags WHERE user_id = ? AND name = ?",
+		userID, name,
+	).Scan(&tag.ID, &tag.UserID, &tag.Name, &tag.Color, &tag.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		// 标签不存在，创建新标签
 		result, err := database.DB.Exec(
-			"INSERT INTO tags (name, color) VALUES (?, ?)",
-			name, getTagColor(name),
+			"INSERT INTO tags (user_id, name, color) VALUES (?, ?, ?)",
+			userID, name, getTagColor(name),
 		)
 		if err != nil {
 			return nil, err
@@ -579,6 +601,7 @@ func CreateTagIfNotExists(name string) (*Tag, error) {
 
 		return &Tag{
 			ID:    int(tagID),
+			UserID: &userID,
 			Name:  name,
 			Color: getTagColor(name),
 		}, nil
@@ -602,9 +625,9 @@ func UpdateTag(id int, name, color string) (*Tag, error) {
 	// 获取更新后的标签
 	var tag Tag
 	err = database.DB.QueryRow(
-		"SELECT id, name, color, created_at FROM tags WHERE id = ?",
+		"SELECT id, user_id, name, color, created_at FROM tags WHERE id = ?",
 		id,
-	).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.CreatedAt)
+	).Scan(&tag.ID, &tag.UserID, &tag.Name, &tag.Color, &tag.CreatedAt)
 
 	if err != nil {
 		return nil, err
