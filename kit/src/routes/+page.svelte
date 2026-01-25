@@ -226,7 +226,7 @@
 
     <div class="panel">
       <div class="panelTitle">热力图</div>
-      <div class="heatmap" style="--cols: 14;">
+      <div class="heatmap">
         {#each heat.cells as c (c.date)}
           <div class="cell" title={`${c.date} · ${c.count}`} style={`background:${heatColor(c.count, heat.max)}`} />
         {/each}
@@ -458,14 +458,21 @@
 
   .heatmap {
     display: grid;
-    grid-template-columns: repeat(var(--cols), 1fr);
+    /* 固定 14 列，避免 iOS/Safari 对 repeat(var(--cols)) 兼容问题导致溢出 */
+    grid-template-columns: repeat(14, minmax(0, 1fr));
     gap: 4px;
+    max-width: 100%;
+    /* 给子像素/边框留一点缓冲，避免最后一列被裁切 */
+    padding: 1px;
+    box-sizing: border-box;
+    overflow: visible;
   }
   .cell {
     width: 100%;
     aspect-ratio: 1 / 1;
     border-radius: 4px;
     border: 1px solid rgba(148, 163, 184, 0.10);
+    box-sizing: border-box;
   }
 
   .content {
