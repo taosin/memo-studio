@@ -1,0 +1,48 @@
+name: Dependabot update branch (keep up-to-date)
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-update-branch-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    if: ${{ github.event.pull_request.draft == false && github.event.pull_request.user.login == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update branch if behind
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const pull_number = pr.number;
+
+            // mergeable_state 可能是 null/unknown（GitHub 需要时间计算），这里尽力检查并更新
+            const { data } = await github.rest.pulls.get({ owner, repo, pull_number });
+            core.info(`mergeable_state=${data.mergeable_state}, mergeable=${data.mergeable}`);
+
+            if (data.mergeable_state !== 'behind') {
+              core.info('PR is not behind base branch; skip update.');
+              return;
+            }
+
+            // 触发“Update branch”（等价于 UI 的 Update branch 按钮）
+            // 需要 expected_head_sha 以避免竞态
+            await github.request('PUT /repos/{owner}/{repo}/pulls/{pull_number}/update-branch', {
+              owner,
+              repo,
+              pull_number,
+              expected_head_sha: data.head.sha
+            });
+
+            core.info('Update branch triggered.');
+
