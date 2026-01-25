@@ -120,6 +120,32 @@ docker compose up -d --build
 建议发布 `linux/amd64` 与 `linux/arm64` 两种架构镜像（群晖/威联通/树莓派常用）。
 后续可以用 GitHub Actions + buildx 自动构建并推送到 Docker Hub/GHCR。
 
+## 镜像发布（给别人 docker pull）
+
+本仓库已内置 GitHub Actions：推送 tag（如 `v0.1.0`）会自动构建并推送镜像到 GHCR：
+
+- 镜像地址：`ghcr.io/<你的GitHub用户名>/<仓库名>:latest`
+- 也会推送版本 tag：例如 `ghcr.io/<你的GitHub用户名>/<仓库名>:v0.1.0`
+
+### 发布步骤
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Actions 运行完成后，别人即可部署：
+
+```bash
+docker run -d \
+  --name memo-studio \
+  -p 9000:9000 \
+  -v memo_data:/data \
+  -e MEMO_JWT_SECRET="please-change-me" \
+  -e MEMO_ADMIN_PASSWORD="your-strong-password" \
+  ghcr.io/<你的GitHub用户名>/<仓库名>:latest
+```
+
 ### 手动启动
 
 #### 1. 启动后端
