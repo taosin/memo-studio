@@ -170,6 +170,30 @@ docker run -d \
   docker.io/<你的DockerHub用户名>/<仓库名>:latest
 ```
 
+## 自建 AI CR 机器人（PR 自动审查）
+
+本仓库已内置工作流：`.github/workflows/ai-pr-review.yml`  
+默认不会对所有 PR 自动评论（避免刷屏/与 Gemini 等机器人冲突）。运行方式如下：
+
+- **方式 A（推荐）**：给 PR 加上标签 **`ai-review`**，工作流就会自动运行并更新同一条评论
+- **方式 B**：手动触发 `AI PR Review` 工作流，并填写 `pr_number`
+
+工作流会：
+- 拉取 PR diff（不 checkout PR 分支代码，避免安全风险）
+- 调用你配置的大模型 API
+- 在 PR 下发布/更新一条中文 CR 评论
+
+### 配置 Secrets
+
+在 GitHub 仓库：`Settings → Secrets and variables → Actions → New repository secret` 添加：
+
+- **`AI_REVIEW_API_KEY`**：模型 API Key（必填）
+- **`AI_REVIEW_MODEL`**：模型名（必填，例如 `gpt-4o-mini` / `gpt-4.1-mini` / 你自建模型名）
+- **`AI_REVIEW_BASE_URL`**：可选，OpenAI 兼容接口地址（默认 `https://api.openai.com/v1`）
+
+说明：
+- 如果未配置 `AI_REVIEW_API_KEY/AI_REVIEW_MODEL`，工作流会自动跳过（不报错）
+
 ### 手动启动
 
 #### 1. 启动后端

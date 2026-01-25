@@ -1,0 +1,79 @@
+name: AI PR Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review (e.g. 123)"
+        required: true
+        type: string
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: ai-pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review_pr:
+    # 仅当 PR 打了 ai-review 标签时才运行（避免与 Gemini/其他机器人刷屏）
+    if: ${{ github.event.pull_request.draft == false && contains(github.event.pull_request.labels.*.name, 'ai-review') }}
+    runs-on: ubuntu-latest
+    steps:
+      # 关键：pull_request_target 下只 checkout base 分支，避免执行不可信 PR 代码
+      - name: Checkout (base branch)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: AI Review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 你需要在 GitHub Secrets 配置：
+          # - AI_REVIEW_API_KEY（必填）
+          # - AI_REVIEW_MODEL（必填，例如 gpt-4o-mini / gpt-4.1-mini / 你自己的模型名）
+          # 可选：
+          # - AI_REVIEW_BASE_URL（默认 OpenAI: https://api.openai.com/v1）
+          AI_REVIEW_API_KEY: ${{ secrets.AI_REVIEW_API_KEY }}
+          AI_REVIEW_MODEL: ${{ secrets.AI_REVIEW_MODEL }}
+          AI_REVIEW_BASE_URL: ${{ secrets.AI_REVIEW_BASE_URL }}
+          # 运行上下文
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: node .github/ai/ai_pr_review.mjs
+
+  review_manual:
+    # 手动触发：无需 label
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (default branch)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: AI Review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_REVIEW_API_KEY: ${{ secrets.AI_REVIEW_API_KEY }}
+          AI_REVIEW_MODEL: ${{ secrets.AI_REVIEW_MODEL }}
+          AI_REVIEW_BASE_URL: ${{ secrets.AI_REVIEW_BASE_URL }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          REPO: ${{ github.repository }}
+        run: node .github/ai/ai_pr_review.mjs
+
