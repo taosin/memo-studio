@@ -8,7 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "svelte": "^4.2.7",
+    "svelte": "^5.48.2",
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.0"
   },
