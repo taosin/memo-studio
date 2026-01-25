@@ -1,44 +1,37 @@
 # This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
 
-name: Node.js CI
+name: CI (web)
 
 on:
   push:
     branches:
       - main
+    paths:
+      - "web/**"
   pull_request:
     branches:
       - main
+    paths:
+      - "web/**"
 
 jobs:
-  build:
+  web:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [12.x, 14.x, 16.x]
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Cache dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('web/package-lock.json') }}-${{ matrix.node-version }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ matrix.node-version }}
-            ${{ runner.os }}-node-
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "web/package-lock.json"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: ./web
 
       - name: Run tests

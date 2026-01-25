@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: CI (backend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: true
+
+      - name: Install build deps (CGO)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential && sudo rm -rf /var/lib/apt/lists/*
+
+      - name: Go test (sqlite_fts5)
+        working-directory: backend
+        run: go test -tags sqlite_fts5 ./...
+
+  kit:
+    name: CI (kit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "kit/package-lock.json"
+
+      - name: Install
+        working-directory: kit
+        run: npm ci
+
+      - name: Build
+        working-directory: kit
+        run: npm run build
+
