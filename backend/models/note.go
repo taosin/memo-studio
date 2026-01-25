@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"log"
 	"memo-studio/backend/database"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -21,6 +23,14 @@ type Tag struct {
 	Name      string    `json:"name"`
 	Color     string    `json:"color"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type TagWithCount struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Color     string    `json:"color"`
+	CreatedAt time.Time `json:"created_at"`
+	NoteCount int       `json:"note_count"`
 }
 
 // CreateNote 创建笔记
@@ -210,6 +220,155 @@ func GetAllNotes() ([]Note, error) {
 		}
 		note.Tags = tags
 
+		notes = append(notes, note)
+	}
+
+	return notes, nil
+}
+
+// SearchNotes FTS5 全文搜索（按内容）
+func SearchNotes(q string, limit, offset int) ([]Note, error) {
+	q = strings.TrimSpace(q)
+	if q == "" {
+		// 空查询：退化为最新列表
+		return GetAllNotes()
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	rows, err := database.DB.Query(
+		`SELECT n.id, n.title, n.content, n.created_at, n.updated_at
+		 FROM notes_fts f
+		 JOIN notes n ON n.id = f.rowid
+		 WHERE notes_fts MATCH ?
+		 ORDER BY bm25(notes_fts)
+		 LIMIT ? OFFSET ?`,
+		q, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notes []Note
+	for rows.Next() {
+		var note Note
+		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.UpdatedAt); err != nil {
+			return nil, err
+		}
+
+		note.Content = cleanContent(note.Content)
+		note.Title = cleanContent(note.Title)
+
+		tags, err := GetTagsByNoteID(note.ID)
+		if err != nil {
+			return nil, err
+		}
+		note.Tags = tags
+		notes = append(notes, note)
+	}
+
+	return notes, nil
+}
+
+// GetTagsWithCount 获取标签列表（包含笔记计数）
+func GetTagsWithCount() ([]TagWithCount, error) {
+	rows, err := database.DB.Query(
+		`SELECT t.id, t.name, t.color, t.created_at, COUNT(nt.note_id) AS note_count
+		 FROM tags t
+		 LEFT JOIN note_tags nt ON t.id = nt.tag_id
+		 GROUP BY t.id
+		 ORDER BY note_count DESC, t.created_at DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tags []TagWithCount
+	for rows.Next() {
+		var t TagWithCount
+		if err := rows.Scan(&t.ID, &t.Name, &t.Color, &t.CreatedAt, &t.NoteCount); err != nil {
+			return nil, err
+		}
+		tags = append(tags, t)
+	}
+	return tags, nil
+}
+
+// GetTagByName 根据名称获取标签
+func GetTagByName(name string) (*Tag, error) {
+	var tag Tag
+	err := database.DB.QueryRow(
+		"SELECT id, name, color, created_at FROM tags WHERE name = ?",
+		name,
+	).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &tag, nil
+}
+
+// RandomNotes 随机回顾笔记（可按标签过滤，可按天数过滤）
+func RandomNotes(limit int, tagName string, withinDays int) ([]Note, error) {
+	if limit <= 0 || limit > 20 {
+		limit = 1
+	}
+
+	args := []interface{}{}
+	query := `
+		SELECT n.id, n.title, n.content, n.created_at, n.updated_at
+		FROM notes n
+	`
+
+	where := " WHERE 1=1 "
+
+	if strings.TrimSpace(tagName) != "" {
+		// tagName -> tag_id
+		tag, err := GetTagByName(strings.TrimSpace(tagName))
+		if err != nil {
+			// 没有该标签：直接返回空
+			if err == sql.ErrNoRows {
+				return []Note{}, nil
+			}
+			return nil, err
+		}
+		query += " JOIN note_tags nt ON nt.note_id = n.id "
+		where += " AND nt.tag_id = ? "
+		args = append(args, tag.ID)
+	}
+
+	if withinDays > 0 {
+		where += " AND n.created_at >= datetime('now', ?) "
+		args = append(args, "-"+strconv.Itoa(withinDays)+" days")
+	}
+
+	query += where + " ORDER BY RANDOM() LIMIT ? "
+	args = append(args, limit)
+
+	rows, err := database.DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notes []Note
+	for rows.Next() {
+		var note Note
+		if err := rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.UpdatedAt); err != nil {
+			return nil, err
+		}
+		note.Content = cleanContent(note.Content)
+		note.Title = cleanContent(note.Title)
+		tags, err := GetTagsByNoteID(note.ID)
+		if err != nil {
+			return nil, err
+		}
+		note.Tags = tags
 		notes = append(notes, note)
 	}
 

@@ -47,7 +47,7 @@ cleanup() {
         kill $FRONTEND_PID 2>/dev/null || true
     fi
     # 清理所有相关进程
-    pkill -f "go run main.go" 2>/dev/null || true
+    pkill -f "go run .*sqlite_fts5" 2>/dev/null || true
     pkill -f "vite dev" 2>/dev/null || true
     echo -e "${GREEN}✅ 服务已停止${NC}"
     exit 0
@@ -111,7 +111,7 @@ fi
 # 启动后端（后台运行，输出到日志）
 echo -e "${YELLOW}⏳ 正在启动后端服务...${NC}"
 # 确保在 backend 目录中运行
-(cd "$(pwd)" && go run main.go > ../backend.log 2>&1) &
+(cd "$(pwd)" && go run -tags sqlite_fts5 main.go > ../backend.log 2>&1) &
 BACKEND_PID=$!
 cd ..
 # 给后端一点时间开始启动
@@ -145,7 +145,7 @@ if [ "$BACKEND_READY" = false ]; then
     echo ""
     echo -e "${YELLOW}💡 排查建议:${NC}"
     echo -e "   1. 检查端口 9000 是否被占用: ${BLUE}lsof -i :9000${NC}"
-    echo -e "   2. 手动启动后端查看错误: ${BLUE}cd backend && go run main.go${NC}"
+    echo -e "   2. 手动启动后端查看错误: ${BLUE}cd backend && go run -tags sqlite_fts5 main.go${NC}"
     echo -e "   3. 检查数据库文件权限: ${BLUE}ls -la backend/notes.db${NC}"
     kill $BACKEND_PID 2>/dev/null || true
     exit 1

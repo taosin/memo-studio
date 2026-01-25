@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"log"
+	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -12,7 +13,11 @@ var DB *sql.DB
 // Init 初始化数据库连接和表结构
 func Init() error {
 	var err error
-	DB, err = sql.Open("sqlite3", "./notes.db")
+	dbPath := os.Getenv("MEMO_DB_PATH")
+	if dbPath == "" {
+		dbPath = "./notes.db"
+	}
+	DB, err = sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return err
 	}
@@ -42,6 +47,30 @@ func createTables() error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
+
+	// 全文检索表（FTS5）
+	//
+	// 注意：FTS5 在 mattn/go-sqlite3 需要以 build tag 启用（sqlite_fts5）。
+	// 这里使用 rowid 与 notes.id 对齐，并通过触发器维护一致性。
+	notesFTSTable := `
+	CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts
+	USING fts5(content, note_id UNINDEXED, tokenize='unicode61');`
+
+	notesFTSTriggers := []string{
+		// 新增
+		`CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
+			INSERT INTO notes_fts(rowid, content, note_id) VALUES (new.id, COALESCE(new.content, ''), new.id);
+		END;`,
+		// 删除（FTS5 推荐用 delete 命令）
+		`CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
+			INSERT INTO notes_fts(notes_fts, rowid, content, note_id) VALUES('delete', old.id, COALESCE(old.content, ''), old.id);
+		END;`,
+		// 更新：先 delete 再 insert
+		`CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
+			INSERT INTO notes_fts(notes_fts, rowid, content, note_id) VALUES('delete', old.id, COALESCE(old.content, ''), old.id);
+			INSERT INTO notes_fts(rowid, content, note_id) VALUES (new.id, COALESCE(new.content, ''), new.id);
+		END;`,
+	}
 
 	// 创建标签表
 	tagsTable := `
@@ -76,6 +105,16 @@ func createTables() error {
 		return err
 	}
 
+	// 创建 FTS5 虚表（如果编译未启用 FTS5，这里会报错）
+	if _, err := DB.Exec(notesFTSTable); err != nil {
+		return err
+	}
+	for _, trg := range notesFTSTriggers {
+		if _, err := DB.Exec(trg); err != nil {
+			return err
+		}
+	}
+
 	if _, err := DB.Exec(tagsTable); err != nil {
 		return err
 	}
@@ -87,6 +126,16 @@ func createTables() error {
 	if _, err := DB.Exec(usersTable); err != nil {
 		return err
 	}
+
+	// 首次创建/升级后，尽量把历史 notes 同步进 FTS 表（避免空索引）
+	// - 使用 NOT EXISTS 防止重复插入
+	// - COALESCE 避免 NULL
+	_, _ = DB.Exec(`
+		INSERT INTO notes_fts(rowid, content, note_id)
+		SELECT n.id, COALESCE(n.content, ''), n.id
+		FROM notes n
+		WHERE NOT EXISTS (SELECT 1 FROM notes_fts f WHERE f.rowid = n.id);
+	`)
 
 	return nil
 }

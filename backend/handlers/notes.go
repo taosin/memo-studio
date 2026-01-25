@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"memo-studio/backend/models"
 
@@ -116,6 +117,11 @@ type UpdateTagRequest struct {
 type MergeTagsRequest struct {
 	SourceID int `json:"sourceId" binding:"required"`
 	TargetID int `json:"targetId" binding:"required"`
+}
+
+type CreateTagRequest struct {
+	Name  string `json:"name" binding:"required"`
+	Color string `json:"color"`
 }
 
 // GetNotes 获取所有笔记
@@ -304,6 +310,20 @@ func DeleteNotes(c *gin.Context) {
 
 // GetTags 获取所有标签
 func GetTags(c *gin.Context) {
+	// withCount=1 时返回包含计数的标签列表（给侧边栏用）
+	if c.Query("withCount") == "1" {
+		tags, err := models.GetTagsWithCount()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取标签列表失败: " + err.Error()})
+			return
+		}
+		if tags == nil {
+			tags = []models.TagWithCount{}
+		}
+		c.JSON(http.StatusOK, tags)
+		return
+	}
+
 	tags, err := models.GetAllTags()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取标签列表失败: " + err.Error()})
@@ -316,6 +336,36 @@ func GetTags(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, tags)
+}
+
+// CreateTag 创建标签
+func CreateTag(c *gin.Context) {
+	var req CreateTagRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误: " + err.Error()})
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "标签名称不能为空"})
+		return
+	}
+
+	tag, err := models.CreateTagIfNotExists(strings.TrimSpace(req.Name))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建标签失败: " + err.Error()})
+		return
+	}
+
+	// 如果传了 color，则更新一次
+	if strings.TrimSpace(req.Color) != "" {
+		updated, err := models.UpdateTag(tag.ID, tag.Name, strings.TrimSpace(req.Color))
+		if err == nil {
+			c.JSON(http.StatusCreated, updated)
+			return
+		}
+	}
+
+	c.JSON(http.StatusCreated, tag)
 }
 
 // UpdateTag 更新标签

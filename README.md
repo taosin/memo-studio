@@ -34,6 +34,30 @@ start.bat
 - 📝 后端 API: http://localhost:9000
 - 🌐 前端应用: http://localhost:9001
 
+## 新一代实现（Go + SQLite FTS5 + SvelteKit）
+
+你这次要求的「Go 后端托管/内嵌 SvelteKit 静态文件」对应如下脚本：
+
+- **开发模式（热更新）**：
+
+```bash
+./dev-kit.sh
+```
+
+打开 `http://localhost:9001`（SvelteKit dev），API 走代理到 `http://localhost:9000`。
+
+- **生产构建 + 一键启动（Go 直接提供前端静态文件）**：
+
+```bash
+./start-prod.sh
+```
+
+启动后直接打开 `http://localhost:9000`。
+
+说明：
+- Go 构建时启用了 `sqlite_fts5` build tag（用于 SQLite FTS5）
+- SvelteKit 构建产物会同步到 `backend/public/`，并由 Go 在运行时托管（SPA fallback 到 `index.html`）
+
 ### 手动启动
 
 #### 1. 启动后端

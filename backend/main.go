@@ -1,14 +1,24 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
 	"log"
 	"memo-studio/backend/database"
 	"memo-studio/backend/handlers"
 	"memo-studio/backend/middleware"
+	"net/http"
+	"path"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
+
+// 前端静态文件（SvelteKit adapter-static 产物会被同步到 backend/public）
+//
+//go:embed public/*
+var publicFiles embed.FS
 
 func main() {
 	// 初始化数据库
@@ -36,29 +46,65 @@ func main() {
 	{
 		public.POST("/auth/login", handlers.Login)
 		public.POST("/auth/register", handlers.Register)
+		// 极简模式：笔记 / 标签 / 搜索 / 随机回顾（不强制登录）
+		public.GET("/notes", handlers.GetNotes)
+		public.POST("/notes", handlers.CreateNote)
+		public.GET("/notes/:id", handlers.GetNote)
+		public.PUT("/notes/:id", handlers.UpdateNote)
+		public.DELETE("/notes/:id", handlers.DeleteNote)
+		public.DELETE("/notes/batch", handlers.DeleteNotes)
+
+		public.GET("/tags", handlers.GetTags)
+		public.POST("/tags", handlers.CreateTag)
+		public.PUT("/tags/:id", handlers.UpdateTag)
+		public.DELETE("/tags/:id", handlers.DeleteTag)
+		public.POST("/tags/merge", handlers.MergeTags)
+
+		public.GET("/search", handlers.SearchNotes)
+		public.GET("/review/random", handlers.RandomReview)
 	}
 
-	// 需要认证的路由
+	// 需要认证的路由（保留旧能力）
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware())
 	{
-		// 用户相关
 		api.GET("/auth/me", handlers.GetCurrentUser)
-
-		// 笔记相关
-		api.GET("/notes", handlers.GetNotes)
-		api.POST("/notes", handlers.CreateNote)
-		api.GET("/notes/:id", handlers.GetNote)
-		api.PUT("/notes/:id", handlers.UpdateNote)
-		api.DELETE("/notes/:id", handlers.DeleteNote)
-		api.DELETE("/notes/batch", handlers.DeleteNotes)
-
-		// 标签相关
-		api.GET("/tags", handlers.GetTags)
-		api.PUT("/tags/:id", handlers.UpdateTag)
-		api.DELETE("/tags/:id", handlers.DeleteTag)
-		api.POST("/tags/merge", handlers.MergeTags)
 	}
+
+	// 静态文件托管（用于部署：Go 服务直接提供前端）
+	staticFS, err := fs.Sub(publicFiles, "public")
+	if err != nil {
+		log.Fatal("静态文件目录初始化失败:", err)
+	}
+	fileServer := http.FileServer(http.FS(staticFS))
+
+	// SPA fallback：非 /api 路径都回退到 index.html
+	r.NoRoute(func(c *gin.Context) {
+		p := c.Request.URL.Path
+		if strings.HasPrefix(p, "/api") || strings.HasPrefix(p, "/health") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+
+		// 尝试直接命中静态资源
+		clean := strings.TrimPrefix(path.Clean("/"+p), "/")
+		if clean == "" || clean == "." {
+			clean = "index.html"
+		}
+
+		if f, err := staticFS.Open(clean); err == nil {
+			_ = f.Close()
+			c.Request.URL.Path = "/" + clean
+			fileServer.ServeHTTP(c.Writer, c.Request)
+			c.Abort()
+			return
+		}
+
+		// 兜底：返回 index.html（给前端路由）
+		c.Request.URL.Path = "/index.html"
+		fileServer.ServeHTTP(c.Writer, c.Request)
+		c.Abort()
+	})
 
 	// 启动服务器
 	log.Println("服务器启动在 :9000")

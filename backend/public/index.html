@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Memo Studio</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px; }
+      code { background: #f1f5f9; padding: 2px 6px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <h2>前端未构建</h2>
+    <p>请先构建 SvelteKit 静态文件：</p>
+    <pre><code>cd kit && npm install && npm run build</code></pre>
+    <p>然后把 <code>kit/build</code> 的产物同步到 <code>backend/public</code>（后面我会提供一键脚本）。</p>
+  </body>
+</html>
+
