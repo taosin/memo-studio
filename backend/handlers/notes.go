@@ -164,8 +164,8 @@ func CreateNote(c *gin.Context) {
 	content := normalizeString(req.Content)
 
 	// 调试日志
-	log.Printf("CreateNote - 原始数据: title=%v (type: %T), content=%v (type: %T)", req.Title, req.Title, req.Content, req.Content)
-	log.Printf("CreateNote - 规范化后: title=%q, content=%q (length: %d)", title, content, len(content))
+	log.Printf("[CreateNote] 接收 - title: %v (type: %T), content: %v (type: %T)", req.Title, req.Title, req.Content, req.Content)
+	log.Printf("[CreateNote] 规范化后 - title: %q (len: %d), content: %q (len: %d)", title, len(title), content, len(content))
 
 	// 验证必填字段
 	if title == "" && content == "" {
@@ -216,8 +216,8 @@ func UpdateNote(c *gin.Context) {
 	content := normalizeString(req.Content)
 
 	// 调试日志
-	log.Printf("UpdateNote - 原始数据: title=%v (type: %T), content=%v (type: %T)", req.Title, req.Title, req.Content, req.Content)
-	log.Printf("UpdateNote - 规范化后: title=%q, content=%q (length: %d)", title, content, len(content))
+	log.Printf("[UpdateNote] 接收 - title: %v (type: %T), content: %v (type: %T)", req.Title, req.Title, req.Content, req.Content)
+	log.Printf("[UpdateNote] 规范化后 - title: %q (len: %d), content: %q (len: %d)", title, len(title), content, len(content))
 
 	// 验证必填字段
 	if content == "" && title == "" {
