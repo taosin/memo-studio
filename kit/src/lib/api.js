@@ -25,6 +25,12 @@ export const api = {
       body: JSON.stringify({ title: '', content, tags })
     });
   },
+  async updateNote(id, { content, tags = [] }) {
+    return jsonFetch(`/notes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title: '', content, tags })
+    });
+  },
   async deleteNote(id) {
     return jsonFetch(`/notes/${id}`, { method: 'DELETE' });
   },

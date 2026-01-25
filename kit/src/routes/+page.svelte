@@ -20,6 +20,9 @@
   let showSidebar = true;
   let reviewOpen = false;
   let reviewText = '';
+  let editOpen = false;
+  let editId = null;
+  let editText = '';
   let debounceTimer;
 
   function extractTags(text) {
@@ -115,6 +118,38 @@
       }
     } catch (e) {
       error = e?.message || '回顾失败';
+    } finally {
+      loading = false;
+    }
+  }
+
+  function openEdit(note) {
+    if (!note) return;
+    const idStr = String(note.id ?? '');
+    if (idStr.startsWith('tmp_')) return;
+    editId = note.id;
+    editText = stripHtml(note.content || '');
+    editOpen = true;
+  }
+
+  async function saveEdit() {
+    const text = String(editText || '').trim();
+    if (!editId) return;
+    if (!text) {
+      setToast('内容不能为空');
+      return;
+    }
+    loading = true;
+    error = '';
+    try {
+      const tgs = extractTags(text);
+      await api.updateNote(editId, { content: text, tags: tgs });
+      setToast('已更新');
+      editOpen = false;
+      editId = null;
+      await reload();
+    } catch (e) {
+      error = e?.message || '更新失败';
     } finally {
       loading = false;
     }
@@ -256,7 +291,7 @@
     {:else}
       <div class="list">
         {#each filtered as n (n.id)}
-          <article class="note">
+          <article class="note" on:dblclick={() => openEdit(n)} title="双击编辑">
             <div class="meta">
               <span class="date">{new Date(n.created_at).toLocaleString('zh-CN')}</span>
               <span class="tags">
@@ -276,6 +311,7 @@
             <div class="rowActions">
               <button class="miniBtn" on:click={() => navigator.clipboard?.writeText(stripHtml(n.content))}>复制</button>
               {#if String(n.id).startsWith('tmp_') === false}
+                <button class="miniBtn" on:click={() => openEdit(n)}>编辑</button>
                 <button class="miniBtn danger" on:click={() => removeNote(n.id)}>删除</button>
               {/if}
             </div>
@@ -294,6 +330,27 @@
       <div class="dialogActions">
         <button class="btn ghost" on:click={() => (reviewOpen = false)}>关闭</button>
         <button class="btn" on:click={randomReview} disabled={loading}>再来一条</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if editOpen}
+  <div class="overlay" role="button" tabindex="0" on:click={() => (editOpen = false)}>
+    <div class="dialog" on:click|stopPropagation>
+      <div class="dialogTitle">编辑笔记</div>
+      <textarea
+        class="dialogInput"
+        bind:value={editText}
+        rows="8"
+        placeholder="修改内容… 支持 #标签"
+        on:keydown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') saveEdit();
+        }}
+      />
+      <div class="dialogActions">
+        <button class="btn ghost" on:click={() => (editOpen = false)} disabled={loading}>取消</button>
+        <button class="btn" on:click={saveEdit} disabled={loading}>保存修改</button>
       </div>
     </div>
   </div>
@@ -606,6 +663,23 @@
     justify-content: flex-end;
     gap: 8px;
     margin-top: 12px;
+  }
+  .dialogInput {
+    width: 100%;
+    resize: vertical;
+    min-height: 160px;
+    border-radius: 12px;
+    border: 1px solid var(--border-2);
+    background: rgba(15, 23, 42, 0.06);
+    color: inherit;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    outline: none;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .dialogInput:focus {
+    border-color: rgba(34, 197, 94, 0.55);
   }
 </style>
 
