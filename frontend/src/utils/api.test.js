@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// 注意：该文件是 ESM（package.json type=module）
-// 我们通过 mock window/localStorage/fetch 来做最小单测
+// Note: This file is an ES Module (type=module in package.json)
+// We use mock window/localStorage/fetch for minimal unit tests
 
 function mockWindow(token = '') {
   global.window = {};
