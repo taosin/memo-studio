@@ -15,7 +15,8 @@ function requireToken() {
 }
 
 async function jsonFetch(path, options = {}) {
-  const token = typeof window !== 'undefined' ? getToken() : '';
+  // always attempt to read token via getToken (works in Node tests where window is undefined but global.localStorage is mocked)
+  const token = getToken();
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
@@ -116,4 +117,3 @@ export const api = {
     return jsonFetch(`/review/random?${qp.toString()}`, { method: 'GET' });
   }
 };
-
