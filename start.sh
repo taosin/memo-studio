@@ -13,6 +13,19 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}🚀 启动 Memo Studio...${NC}"
 
+open_url() {
+    local url="$1"
+    if command -v open &> /dev/null; then
+        open "$url" >/dev/null 2>&1 || true
+    elif command -v xdg-open &> /dev/null; then
+        xdg-open "$url" >/dev/null 2>&1 || true
+    elif command -v cmd.exe &> /dev/null; then
+        cmd.exe /c start "$url" >/dev/null 2>&1 || true
+    else
+        echo -e "${YELLOW}请手动打开: ${url}${NC}"
+    fi
+}
+
 # 检查 Go 是否安装
 if ! command -v go &> /dev/null; then
     echo -e "${RED}❌ 错误: 未找到 Go，请先安装 Go 1.21+${NC}"
@@ -216,6 +229,9 @@ echo -e "   - 首次使用请先注册账号"
 echo -e "   - 查看日志: tail -f backend.log 或 tail -f frontend.log"
 echo -e "   - 按 ${RED}Ctrl+C${NC} 停止所有服务"
 echo ""
+
+# 自动打开浏览器（旧前端无路由跳转，这里打开首页即可）
+open_url "http://localhost:9001"
 
 # 等待用户中断
 wait
