@@ -49,6 +49,10 @@ jobs:
         working-directory: kit
         run: npm ci
 
+      - name: Test
+        working-directory: kit
+        run: npm test
+
       - name: Build
         working-directory: kit
         run: npm run build

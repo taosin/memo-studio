@@ -15,7 +15,11 @@ app.use(bodyParser.json());
 app.use('/api/auth', authRouter);
 app.use('/api/notes', notesRouter);
 
-// 启动服务器
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// 启动服务器（作为模块被 require 时不自动 listen，便于测试）
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
