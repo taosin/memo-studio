@@ -14,6 +14,11 @@
 
   function syncAuth() {
     try {
+      if (typeof localStorage === 'undefined') {
+        authed = false;
+        isAdmin = false;
+        return;
+      }
       const t = localStorage.getItem('token');
       authed = !!t;
       const u = JSON.parse(localStorage.getItem('user') || '{}');
@@ -23,6 +28,9 @@
       isAdmin = false;
     }
   }
+
+  // 需要在组件初始化阶段注册（不能放到 onMount 里）
+  afterNavigate(() => syncAuth());
 
   async function logout() {
     await api.logout();
@@ -37,8 +45,6 @@
     }
 
     syncAuth();
-    // SPA 内登录后跳转不会重建 layout，这里用导航钩子+storage 事件同步
-    afterNavigate(() => syncAuth());
     window.addEventListener('storage', syncAuth);
 
     return () => {
