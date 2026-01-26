@@ -34,7 +34,7 @@ test('authStore login/logout updates subscribers and localStorage', async () => 
   assert.equal(store.get('user'), undefined);
 
   unsub();
-  // 至少经历：初始、login、logout
+// The 'seen' array should have at least 3 values: initial, after login, and after logout
   assert.ok(seen.length >= 3);
   assert.equal(seen[seen.length - 1].isAuthenticated, false);
 });
