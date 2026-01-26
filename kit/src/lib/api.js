@@ -15,6 +15,7 @@ function requireToken() {
 }
 
 async function jsonFetch(path, options = {}) {
+  // always attempt to read token via getToken (works in Node tests where window is undefined but global.localStorage is mocked)
   const token = getToken();
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
