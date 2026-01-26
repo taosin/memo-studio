@@ -132,6 +132,17 @@ func runMigrations() error {
 		ver = 6
 	}
 
+	// v7：移除 tags.name 全局 UNIQUE，改为 (user_id, name) 唯一
+	if ver < 7 {
+		if err := ensureTagsUniquePerUserV7(ctx, conn); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, `PRAGMA user_version = 7;`); err != nil {
+			return err
+		}
+		ver = 7
+	}
+
 	return nil
 }
 
@@ -174,9 +185,11 @@ func ensureSchemaV1(ctx context.Context, conn *sql.Conn) error {
 	tagsTable := `
 	CREATE TABLE IF NOT EXISTS tags (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL UNIQUE,
+		user_id INTEGER,
+		name TEXT NOT NULL,
 		color TEXT,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 	);`
 
 	// 创建笔记标签关联表
@@ -480,6 +493,62 @@ func ensureMultiUserIsolationV6(ctx context.Context, conn *sql.Conn) error {
 	// 把历史 notes/tags 的 NULL user_id 迁移到主用户（避免“所有人共享数据”）
 	_, _ = conn.ExecContext(ctx, `UPDATE notes SET user_id = ? WHERE user_id IS NULL;`, primaryUserID)
 	_, _ = conn.ExecContext(ctx, `UPDATE tags SET user_id = ? WHERE user_id IS NULL;`, primaryUserID)
+	return nil
+}
+
+// SQLite 无法直接 DROP 列级 UNIQUE 约束，因此通过重建表移除 tags.name 的全局 UNIQUE。
+func ensureTagsUniquePerUserV7(ctx context.Context, conn *sql.Conn) error {
+	// 如果旧库存在 tags.name UNIQUE，会生成 sqlite_autoindex_tags_1；我们统一重建 tags 表。
+	_, _ = conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF;`)
+	if _, err := conn.ExecContext(ctx, `BEGIN;`); err != nil {
+		return err
+	}
+
+	// 新表：不含 name UNIQUE，只保留 (user_id,name) 唯一索引
+	if _, err := conn.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS tags_new (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER,
+			name TEXT NOT NULL,
+			color TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+		);
+	`); err != nil {
+		_, _ = conn.ExecContext(ctx, `ROLLBACK;`)
+		return err
+	}
+
+	// 复制数据（保留 id，保证 note_tags 引用不变）
+	if _, err := conn.ExecContext(ctx, `
+		INSERT INTO tags_new (id, user_id, name, color, created_at)
+		SELECT id, user_id, name, color, created_at FROM tags;
+	`); err != nil {
+		_, _ = conn.ExecContext(ctx, `ROLLBACK;`)
+		return err
+	}
+
+	// 替换表
+	if _, err := conn.ExecContext(ctx, `DROP TABLE tags;`); err != nil {
+		_, _ = conn.ExecContext(ctx, `ROLLBACK;`)
+		return err
+	}
+	if _, err := conn.ExecContext(ctx, `ALTER TABLE tags_new RENAME TO tags;`); err != nil {
+		_, _ = conn.ExecContext(ctx, `ROLLBACK;`)
+		return err
+	}
+
+	// 重建 per-user unique index
+	if _, err := conn.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_user_name ON tags(user_id, name);`); err != nil {
+		_, _ = conn.ExecContext(ctx, `ROLLBACK;`)
+		return err
+	}
+
+	if _, err := conn.ExecContext(ctx, `COMMIT;`); err != nil {
+		_, _ = conn.ExecContext(ctx, `ROLLBACK;`)
+		return err
+	}
+	_, _ = conn.ExecContext(ctx, `PRAGMA foreign_keys = ON;`)
 	return nil
 }
 

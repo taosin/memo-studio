@@ -41,22 +41,43 @@ check_port 9000
 check_port 9001
 
 echo -e "${BLUE}📦 启动后端（:9000，FTS5）...${NC}"
+# 首次启动：依赖下载/编译可能较慢，尽量使用国内 GOPROXY
+if [ -z "${GOPROXY:-}" ]; then
+  export GOPROXY=https://goproxy.cn,direct
+  echo -e "${YELLOW}📡 已设置 GOPROXY=${GOPROXY}${NC}"
+fi
+
+echo -e "${YELLOW}📥 预拉取 Go 依赖...${NC}"
+(cd backend && go mod download) || {
+  echo -e "${YELLOW}⚠️  预拉取失败，尝试备用代理...${NC}"
+  export GOPROXY=https://mirrors.aliyun.com/goproxy/,direct
+  (cd backend && go mod download) || true
+}
+
 (cd backend && go run -tags sqlite_fts5 . > ../backend.log 2>&1) &
 BACKEND_PID=$!
 
 # 等待后端健康检查
 BACKEND_READY=false
-for i in {1..20}; do
+for i in {1..90}; do
   if curl -s -f http://localhost:9000/health > /dev/null 2>&1; then
     BACKEND_READY=true
     break
+  fi
+  # 如果进程已退出，直接输出日志并失败
+  if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+    echo -e "${RED}❌ 后端进程已退出${NC}"
+    break
+  fi
+  if [ $((i % 10)) -eq 0 ]; then
+    echo -e "${YELLOW}   已等待后端启动 ${i}s...（首次下载/编译可能较慢）${NC}"
   fi
   sleep 1
 done
 if [ "$BACKEND_READY" = false ]; then
   echo -e "${RED}❌ 后端未成功启动（/health 不可达）${NC}"
-  echo -e "${YELLOW}📋 backend.log（最后50行）:${NC}"
-  tail -50 backend.log 2>/dev/null || true
+  echo -e "${YELLOW}📋 backend.log（最后120行）:${NC}"
+  tail -120 backend.log 2>/dev/null || true
   exit 1
 fi
 
