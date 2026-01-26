@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"memo-studio/backend/database"
 	"memo-studio/backend/models"
 
 	"github.com/gin-gonic/gin"
@@ -124,9 +126,45 @@ type CreateTagRequest struct {
 	Color string `json:"color"`
 }
 
+func mustUserID(c *gin.Context) (int, bool) {
+	uidAny, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
+		return 0, false
+	}
+	return uidAny.(int), true
+}
+
+func ensureNoteOwned(c *gin.Context, noteID int, userID int) bool {
+	var owner sql.NullInt64
+	err := database.DB.QueryRow("SELECT user_id FROM notes WHERE id = ?", noteID).Scan(&owner)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "笔记不存在"})
+			return false
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败: " + err.Error()})
+		return false
+	}
+	// 兼容旧数据：user_id 为空时允许（但 v6 会迁移为主用户）
+	if owner.Valid && int(owner.Int64) != userID {
+		c.JSON(http.StatusNotFound, gin.H{"error": "笔记不存在"})
+		return false
+	}
+	return true
+}
+
 // GetNotes 获取所有笔记
 func GetNotes(c *gin.Context) {
-	notes, err := models.GetAllNotes()
+	userID, ok := mustUserID(c)
+	if !ok {
+		return
+	}
+	notes, err := models.ListMemos(models.MemoQuery{
+		Limit:  200,
+		Offset: 0,
+		UserID: &userID,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取笔记列表失败: " + err.Error()})
 		return
@@ -147,6 +185,13 @@ func GetNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的笔记ID"})
 		return
 	}
+	userID, ok := mustUserID(c)
+	if !ok {
+		return
+	}
+	if !ensureNoteOwned(c, id, userID) {
+		return
+	}
 
 	note, err := models.GetNote(id)
 	if err != nil {
@@ -165,12 +210,10 @@ func CreateNote(c *gin.Context) {
 		return
 	}
 
-	uidAny, ok := c.Get("userID")
+	userID, ok := mustUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
 		return
 	}
-	userID := uidAny.(int)
 
 	// 规范化 title 和 content 为字符串
 	title := normalizeString(req.Title)
@@ -218,12 +261,13 @@ func UpdateNote(c *gin.Context) {
 		return
 	}
 
-	uidAny, ok := c.Get("userID")
+	userID, ok := mustUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
 		return
 	}
-	userID := uidAny.(int)
+	if !ensureNoteOwned(c, id, userID) {
+		return
+	}
 
 	var req UpdateNoteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -245,12 +289,7 @@ func UpdateNote(c *gin.Context) {
 		return
 	}
 
-	// 检查笔记是否存在
-	_, err = models.GetNote(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "笔记不存在"})
-		return
-	}
+	// 权限已通过 ensureNoteOwned
 
 	// 创建或获取标签
 	var tagIDs []int
@@ -283,11 +322,11 @@ func DeleteNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的笔记ID"})
 		return
 	}
-
-	// 检查笔记是否存在
-	_, err = models.GetNote(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "笔记不存在"})
+	userID, ok := mustUserID(c)
+	if !ok {
+		return
+	}
+	if !ensureNoteOwned(c, id, userID) {
 		return
 	}
 
@@ -312,8 +351,19 @@ func DeleteNotes(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请选择要删除的笔记"})
 		return
 	}
-
-	err := models.DeleteNotes(req.IDs)
+	userID, ok := mustUserID(c)
+	if !ok {
+		return
+	}
+	// 按 user_id 过滤删除
+	placeholders := strings.Repeat("?,", len(req.IDs))
+	placeholders = strings.TrimSuffix(placeholders, ",")
+	args := make([]interface{}, 0, len(req.IDs)+1)
+	args = append(args, userID)
+	for _, id := range req.IDs {
+		args = append(args, id)
+	}
+	_, err := database.DB.Exec("DELETE FROM notes WHERE user_id = ? AND id IN ("+placeholders+")", args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "批量删除笔记失败: " + err.Error()})
 		return

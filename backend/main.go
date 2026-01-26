@@ -96,6 +96,15 @@ func main() {
 		api.PUT("/memos/:id", handlers.UpdateMemo)
 		api.DELETE("/memos/:id", handlers.DeleteMemo)
 
+		// legacy notes/search：保持旧前端可用（需要登录，内部按 user_id 隔离）
+		api.GET("/notes", handlers.GetNotes)
+		api.POST("/notes", handlers.CreateNote)
+		api.GET("/notes/:id", handlers.GetNote)
+		api.PUT("/notes/:id", handlers.UpdateNote)
+		api.DELETE("/notes/:id", handlers.DeleteNote)
+		api.DELETE("/notes/batch", handlers.DeleteNotes)
+		api.GET("/search", handlers.SearchNotes)
+
 		// tags（需要登录）
 		api.GET("/tags", handlers.GetTags)
 		api.POST("/tags", handlers.CreateTag)
