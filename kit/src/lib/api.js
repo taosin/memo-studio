@@ -15,7 +15,7 @@ function requireToken() {
 }
 
 async function jsonFetch(path, options = {}) {
-  const token = typeof window !== 'undefined' ? getToken() : '';
+  const token = getToken();
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
@@ -116,4 +116,3 @@ export const api = {
     return jsonFetch(`/review/random?${qp.toString()}`, { method: 'GET' });
   }
 };
-
