@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
 
   let username = 'admin';
-  let password = 'admin123';
+  let password = '';
   let loading = false;
   let error = '';
   const uid = `u_${Math.random().toString(16).slice(2)}`;
@@ -39,7 +39,7 @@
 <div class="wrap">
   <div class="card">
     <div class="title">登录</div>
-    <div class="hint">默认账号：admin / admin123</div>
+    <div class="hint">默认管理员用户名：admin（密码请查看后端启动日志，或设置 MEMO_ADMIN_PASSWORD）</div>
 
     {#if error}
       <div class="error">{error}</div>

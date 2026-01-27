@@ -11,6 +11,19 @@ NC='\033[0m'
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+open_url() {
+  local url="$1"
+  if command -v open >/dev/null 2>&1; then
+    open "$url" >/dev/null 2>&1 || true
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$url" >/dev/null 2>&1 || true
+  elif command -v cmd.exe >/dev/null 2>&1; then
+    cmd.exe /c start "$url" >/dev/null 2>&1 || true
+  else
+    echo -e "${YELLOW}请手动打开: ${url}${NC}"
+  fi
+}
+
 cleanup() {
   echo -e "\n${YELLOW}🛑 正在停止 dev 服务...${NC}"
   if [ -n "${BACKEND_PID:-}" ]; then kill "$BACKEND_PID" 2>/dev/null || true; fi
@@ -108,8 +121,12 @@ fi
 echo -e "${GREEN}✅ Dev 已启动${NC}"
 echo -e "${BLUE}📝 API: ${GREEN}http://localhost:9000/api${NC}"
 echo -e "${BLUE}🌐 Web: ${GREEN}http://localhost:9001${NC}"
+echo -e "${BLUE}🔐 登录页: ${GREEN}http://localhost:9001/login${NC}"
 echo -e "${YELLOW}查看日志: tail -f backend.log 或 tail -f kit.log${NC}"
 echo -e "${YELLOW}按 Ctrl+C 停止${NC}"
+
+# 自动打开浏览器（优先打开登录页）
+open_url "http://localhost:9001/login"
 
 wait
 
