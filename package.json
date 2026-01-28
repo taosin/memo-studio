@@ -1,0 +1,19 @@
+{
+  "name": "memo-studio",
+  "version": "0.1.0",
+  "description": "A clean and beautiful note-taking application with H5 and Web support",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taoxin167/memo-studio.git"
+  },
+  "keywords": [
+    "memo",
+    "notes",
+    "svelte",
+    "go",
+    "sqlite"
+  ],
+  "author": "taoxin167",
+  "license": "MIT"
+}
