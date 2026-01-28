@@ -39,9 +39,14 @@ RUN apt-get update && \
 
 # non-root user
 RUN useradd -m -u 10001 appuser
-USER appuser
+
+# 创建数据目录并设置权限（在切换用户之前）
+RUN mkdir -p /data && chown -R appuser:appuser /data
 
 COPY --from=go-builder /out/memo-studio /app/memo-studio
+
+# 切换到非 root 用户
+USER appuser
 
 ENV GIN_MODE=release \
     PORT=9000 \
@@ -52,7 +57,7 @@ EXPOSE 9000
 VOLUME ["/data"]
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget -qO- "http://127.0.0.1:${PORT:-9000}/health" >/dev/null 2>&1 || exit 1
+    CMD wget -qO- "http://127.0.0.1:${PORT:-9000}/health" >/dev/null 2>&1 || exit 1
 
 CMD ["/app/memo-studio"]
 
