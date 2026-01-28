@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { afterNavigate } from '$app/navigation';
+  import { afterNavigate, goto } from '$app/navigation';
   import { theme, applyTheme, toggleTheme } from '$lib/theme.js';
   import { api } from '$lib/api.js';
 
@@ -60,7 +60,7 @@
 
 <div class="app">
   <header class="topbar">
-    <div class="brand">Memo Studio</div>
+    <a href="/" class="brand" on:click|preventDefault={() => goto('/')}>Memo Studio</a>
     <div class="hint">极简记录 · Ctrl/Cmd + Enter 保存</div>
     <div class="spacer" />
     {#if authed}
@@ -145,6 +145,12 @@
   .brand {
     font-weight: 700;
     letter-spacing: 0.2px;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .brand:hover {
+    filter: brightness(1.1);
   }
   .hint {
     font-size: 12px;

@@ -1,32 +1,41 @@
 <script>
-  import { api } from '$lib/api.js';
-  import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
+  import { api } from "$lib/api.js";
+  import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
 
   let users = [];
   let loading = false;
-  let error = '';
-  let toast = '';
+  let error = "";
+  let toast = "";
 
-  let newUsername = '';
-  let newPassword = '';
-  let newEmail = '';
+  let newUsername = "";
+  let newPassword = "";
+  let newEmail = "";
   let newIsAdmin = false;
+
+  // 生成随机 ID 和 name 来防止浏览器自动填充
+  const randomId1 = `field_${Math.random().toString(36).substring(2, 9)}`;
+  const randomId2 = `field_${Math.random().toString(36).substring(2, 9)}`;
+  const randomId3 = `field_${Math.random().toString(36).substring(2, 9)}`;
+
+  function removeReadonly(event) {
+    event.target.removeAttribute("readonly");
+  }
 
   function setToast(s) {
     toast = s;
-    setTimeout(() => (toast = ''), 1500);
+    setTimeout(() => (toast = ""), 1500);
   }
 
   async function load() {
     loading = true;
-    error = '';
+    error = "";
     try {
       users = await api.adminListUsers();
     } catch (e) {
-      error = e?.message || '加载失败';
-      if (String(error).includes('未认证')) {
-        await goto('/login');
+      error = e?.message || "加载失败";
+      if (String(error).includes("未认证")) {
+        await goto("/login");
       }
     } finally {
       loading = false;
@@ -35,22 +44,22 @@
 
   async function createUser() {
     loading = true;
-    error = '';
+    error = "";
     try {
       await api.adminCreateUser({
         username: newUsername,
         password: newPassword,
         email: newEmail,
-        is_admin: newIsAdmin
+        is_admin: newIsAdmin,
       });
-      newUsername = '';
-      newPassword = '';
-      newEmail = '';
+      newUsername = "";
+      newPassword = "";
+      newEmail = "";
       newIsAdmin = false;
-      setToast('已创建');
+      setToast("已创建");
       await load();
     } catch (e) {
-      error = e?.message || '创建失败';
+      error = e?.message || "创建失败";
     } finally {
       loading = false;
     }
@@ -58,32 +67,32 @@
 
   async function saveUser(u) {
     loading = true;
-    error = '';
+    error = "";
     try {
       await api.adminUpdateUser(u.id, {
         username: u.username,
-        email: u.email || '',
-        is_admin: !!u.is_admin
+        email: u.email || "",
+        is_admin: !!u.is_admin,
       });
-      setToast('已保存');
+      setToast("已保存");
       await load();
     } catch (e) {
-      error = e?.message || '保存失败';
+      error = e?.message || "保存失败";
     } finally {
       loading = false;
     }
   }
 
   async function delUser(id) {
-    if (!confirm('确定删除该用户吗？')) return;
+    if (!confirm("确定删除该用户吗？")) return;
     loading = true;
-    error = '';
+    error = "";
     try {
       await api.adminDeleteUser(id);
-      setToast('已删除');
+      setToast("已删除");
       await load();
     } catch (e) {
-      error = e?.message || '删除失败';
+      error = e?.message || "删除失败";
     } finally {
       loading = false;
     }
@@ -109,14 +118,44 @@
     <div class="section">
       <div class="sectionTitle">新增用户</div>
       <div class="grid">
-        <input class="input" placeholder="用户名" bind:value={newUsername} />
-        <input class="input" type="password" placeholder="密码" bind:value={newPassword} />
-        <input class="input" placeholder="邮箱(可选)" bind:value={newEmail} />
+        <input
+          class="input"
+          id={randomId1}
+          name={randomId1}
+          placeholder="用户名"
+          bind:value={newUsername}
+          autocomplete="nope"
+          readonly
+          on:focus={removeReadonly}
+        />
+        <input
+          class="input"
+          type="password"
+          id={randomId2}
+          name={randomId2}
+          placeholder="密码"
+          bind:value={newPassword}
+          autocomplete="new-password"
+          readonly
+          on:focus={removeReadonly}
+        />
+        <input
+          class="input"
+          id={randomId3}
+          name={randomId3}
+          placeholder="邮箱(可选)"
+          bind:value={newEmail}
+          autocomplete="nope"
+          readonly
+          on:focus={removeReadonly}
+        />
         <label class="chk">
           <input type="checkbox" bind:checked={newIsAdmin} />
           管理员
         </label>
-        <button class="btn" on:click={createUser} disabled={loading}>创建</button>
+        <button class="btn" on:click={createUser} disabled={loading}
+          >创建</button
+        >
       </div>
     </div>
 
@@ -134,16 +173,46 @@
             <div>操作</div>
           </div>
           {#each users as u (u.id)}
+            {@const randomId4 = `user_${u.id}_${Math.random().toString(36).substring(2, 7)}`}
+            {@const randomId5 = `email_${u.id}_${Math.random().toString(36).substring(2, 7)}`}
             <div class="tr">
               <div class="id">{u.id}</div>
-              <div><input class="cell" bind:value={u.username} /></div>
-              <div><input class="cell" bind:value={u.email} /></div>
+              <div>
+                <input
+                  class="cell"
+                  id={randomId4}
+                  name={randomId4}
+                  bind:value={u.username}
+                  autocomplete="nope"
+                  readonly
+                  on:focus={removeReadonly}
+                />
+              </div>
+              <div>
+                <input
+                  class="cell"
+                  id={randomId5}
+                  name={randomId5}
+                  bind:value={u.email}
+                  autocomplete="nope"
+                  readonly
+                  on:focus={removeReadonly}
+                />
+              </div>
               <div>
                 <input type="checkbox" bind:checked={u.is_admin} />
               </div>
               <div class="ops">
-                <button class="mini" on:click={() => saveUser(u)} disabled={loading}>保存</button>
-                <button class="mini danger" on:click={() => delUser(u.id)} disabled={loading}>删除</button>
+                <button
+                  class="mini"
+                  on:click={() => saveUser(u)}
+                  disabled={loading}>保存</button
+                >
+                <button
+                  class="mini danger"
+                  on:click={() => delUser(u.id)}
+                  disabled={loading}>删除</button
+                >
               </div>
             </div>
           {/each}
@@ -304,4 +373,3 @@
     margin: 8px 0 10px;
   }
 </style>
-
