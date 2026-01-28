@@ -4,21 +4,21 @@ on:
   release:  
     types: [published]  # 每当发布新版本时触发  
 
+permissions:
+  contents: write  # 需要写入权限来提交 CHANGELOG.md
+
 jobs:  
   changelog:  
     runs-on: ubuntu-latest  
 
     steps:  
       - name: Checkout code  
-        uses: actions/checkout@v2  
+        uses: actions/checkout@v4  
 
       - name: Set up Node.js  
-        uses: actions/setup-node@v2  
+        uses: actions/setup-node@v4  
         with:  
-          node-version: '14'  # 设置你需要的 Node.js 版本  
-
-      - name: Install dependencies  
-        run: npm install  
+          node-version: '20'  # 使用更新的 Node.js 版本  
 
       - name: Generate Changelog  
         run: npx auto-changelog -p  

@@ -12,13 +12,15 @@ COPY kit ./kit
 RUN cd kit && npm run build
 
 ### Build Go binary (CGO + sqlite_fts5)
-FROM golang:1.21-bookworm AS go-builder
+FROM golang:1.23-bookworm AS go-builder
 WORKDIR /app
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends build-essential ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+# 设置 Go 代理（可选，有助于解决网络问题）
+ENV GOPROXY=https://proxy.golang.org,direct
 COPY backend/go.mod backend/go.sum ./backend/
 RUN cd backend && go mod download
 COPY backend ./backend
