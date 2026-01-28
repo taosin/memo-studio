@@ -45,7 +45,7 @@ RUN cd backend && \
     CGO_ENABLED=1 go build -tags sqlite_fts5 -o /out/memo-studio .
 
 ### Runtime
-FROM debian:bookworm-slim
+FROM debian:stable-20260112-slim
 WORKDIR /app
 # 更新所有包到最新版本以修复安全漏洞
 RUN apt-get update && \
