@@ -26,7 +26,7 @@ func Init() error {
 	}
 	
 	// 确保数据库文件所在目录存在
-	if dbDir := filepath.Dir(dbPath); dbDir != "." && dbDir != "" {
+if dbDir := filepath.Dir(dbPath); dbDir != "." {
 		if err := os.MkdirAll(dbDir, 0755); err != nil {
 			return fmt.Errorf("无法创建数据库目录 %s: %w", dbDir, err)
 		}
