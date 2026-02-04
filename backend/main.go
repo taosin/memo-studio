@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"io/fs"
 	"log"
@@ -9,8 +10,11 @@ import (
 	"memo-studio/backend/middleware"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -32,8 +36,20 @@ func main() {
 		log.Fatal("数据库初始化失败:", err)
 	}
 
-	// 创建 Gin 路由
-	r := gin.Default()
+	// 创建 Gin 路由（生产环境禁用控制台颜色与调试）
+	r := gin.New()
+	r.Use(gin.Recovery())
+	if os.Getenv("GIN_MODE") != "release" {
+		r.Use(gin.Logger())
+	}
+
+	// 安全响应头（线上可用）
+	r.Use(func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "SAMEORIGIN")
+		c.Header("X-XSS-Protection", "1; mode=block")
+		c.Next()
+	})
 
 	// 配置 CORS
 	// - 生产建议显式设置 MEMO_CORS_ORIGINS（逗号分隔）
@@ -164,13 +180,31 @@ func main() {
 		c.Abort()
 	})
 
-	// 启动服务器
+	// 启动服务器（支持优雅关闭）
 	port := strings.TrimSpace(os.Getenv("PORT"))
 	if port == "" {
 		port = "9000"
 	}
-	log.Println("服务器启动在 :" + port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatal("服务器启动失败:", err)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
 	}
+	go func() {
+		log.Println("服务器启动在 :" + port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal("服务器启动失败:", err)
+		}
+	}()
+
+	// 优雅关闭：监听 SIGINT / SIGTERM
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("正在关闭服务器...")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("服务器强制关闭:", err)
+	}
+	log.Println("服务器已退出")
 }
