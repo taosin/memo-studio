@@ -184,4 +184,3 @@ func DeleteResource(id int, userID int) error {
 	_, _ = database.DB.Exec(`DELETE FROM note_resources WHERE resource_id = ?`, id)
 	return nil
 }
-
