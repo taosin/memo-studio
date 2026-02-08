@@ -131,8 +131,23 @@ func main() {
 		// review（需要登录）
 		api.GET("/review/random", handlers.RandomReview)
 
-		// resources（附件上传）
+		// resources（附件上传、资源库列表与删除）
+		api.GET("/resources", handlers.ListResources)
 		api.POST("/resources", handlers.UploadResource)
+		api.DELETE("/resources/:id", handlers.DeleteResourceHandler)
+
+		// notebooks（笔记本分类）
+		api.GET("/notebooks", handlers.ListNotebooks)
+		api.GET("/notebooks/:id", handlers.GetNotebook)
+		api.POST("/notebooks", handlers.CreateNotebook)
+		api.PUT("/notebooks/:id", handlers.UpdateNotebook)
+		api.DELETE("/notebooks/:id", handlers.DeleteNotebook)
+		api.GET("/notebooks/:id/notes", handlers.ListNotebookNotes)
+
+		// 统计与导出导入
+		api.GET("/stats", handlers.GetStats)
+		api.GET("/export", handlers.ExportNotes)
+		api.POST("/import", handlers.ImportNotes)
 
 		// 用户管理（管理员）
 		admin := api.Group("/users")

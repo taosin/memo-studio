@@ -71,6 +71,14 @@
     <div class="hint">极简记录 · Ctrl/Cmd + Enter 保存</div>
     <div class="spacer" />
     {#if authed}
+      <a class="nav" href="/notebooks">笔记本</a>
+      <a class="nav" href="/stats">统计</a>
+      <a class="nav" href="/resources">资源库</a>
+      <a class="nav" href="/tags">标签库</a>
+      <a class="nav" href="/export">导出</a>
+      <a class="nav" href="/import">导入</a>
+      <a class="nav" href="/settings">设置</a>
+      <a class="nav" href="/help">帮助</a>
       <a class="nav" href="/profile">个人信息</a>
       {#if isAdmin}
         <a class="nav" href="/admin/users">用户管理</a>

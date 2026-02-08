@@ -18,6 +18,7 @@ type Note struct {
 	Pinned      bool       `json:"pinned"`
 	Tags        []Tag      `json:"tags"`
 	Resources   []Resource `json:"resources"`
+	NotebookIDs []int      `json:"notebook_ids,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
@@ -248,6 +249,10 @@ func GetNote(id int) (*Note, error) {
 		return nil, err
 	}
 	note.Resources = resources
+
+	// 获取所属笔记本 ID 列表
+	notebookIDs, _ := GetNotebookIDsByNoteID(id)
+	note.NotebookIDs = notebookIDs
 
 	return note, nil
 }

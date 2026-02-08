@@ -152,6 +152,48 @@ func runMigrations() error {
 		ver = 7
 	}
 
+	// v8：笔记本（notebooks）表 + note_notebooks 关联表
+	if ver < 8 {
+		if err := ensureNotebooksV8(ctx, conn); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, `PRAGMA user_version = 8;`); err != nil {
+			return err
+		}
+		ver = 8
+	}
+
+	return nil
+}
+
+func ensureNotebooksV8(ctx context.Context, conn *sql.Conn) error {
+	notebooksTable := `
+	CREATE TABLE IF NOT EXISTS notebooks (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		color TEXT,
+		sort_order INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+	);`
+	noteNotebooksTable := `
+	CREATE TABLE IF NOT EXISTS note_notebooks (
+		note_id INTEGER NOT NULL,
+		notebook_id INTEGER NOT NULL,
+		PRIMARY KEY (note_id, notebook_id),
+		FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+		FOREIGN KEY (notebook_id) REFERENCES notebooks(id) ON DELETE CASCADE
+	);`
+	if _, err := conn.ExecContext(ctx, notebooksTable); err != nil {
+		return err
+	}
+	if _, err := conn.ExecContext(ctx, noteNotebooksTable); err != nil {
+		return err
+	}
+	_, _ = conn.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_notebooks_user_id ON notebooks(user_id);`)
+	_, _ = conn.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_note_notebooks_notebook_id ON note_notebooks(notebook_id);`)
 	return nil
 }
 

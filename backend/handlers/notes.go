@@ -16,15 +16,17 @@ import (
 )
 
 type CreateNoteRequest struct {
-	Title   interface{} `json:"title"`
-	Content interface{}   `json:"content"`
-	Tags    []string    `json:"tags"`
+	Title       interface{} `json:"title"`
+	Content     interface{} `json:"content"`
+	Tags        []string    `json:"tags"`
+	NotebookIDs []int       `json:"notebook_ids"`
 }
 
 type UpdateNoteRequest struct {
-	Title   interface{} `json:"title"`
-	Content interface{}   `json:"content"`
-	Tags    []string    `json:"tags"`
+	Title       interface{} `json:"title"`
+	Content     interface{} `json:"content"`
+	Tags        []string    `json:"tags"`
+	NotebookIDs []int       `json:"notebook_ids"`
 }
 
 // normalizeString 将 interface{} 转换为字符串，处理各种类型
@@ -250,6 +252,21 @@ func CreateNote(c *gin.Context) {
 		return
 	}
 
+	// 关联笔记本：仅关联当前用户拥有的笔记本
+	if len(req.NotebookIDs) > 0 {
+		var validIDs []int
+		for _, nid := range req.NotebookIDs {
+			if nid <= 0 {
+				continue
+			}
+			nb, _ := models.GetNotebook(nid, userID)
+			if nb != nil {
+				validIDs = append(validIDs, nid)
+			}
+		}
+		_ = models.SetNoteNotebooks(note.ID, validIDs)
+	}
+
 	c.JSON(http.StatusCreated, note)
 }
 
@@ -310,6 +327,21 @@ func UpdateNote(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新笔记失败: " + err.Error()})
 		return
+	}
+
+	// 同步笔记本关联：仅关联当前用户拥有的笔记本
+	if req.NotebookIDs != nil {
+		var validIDs []int
+		for _, nid := range req.NotebookIDs {
+			if nid <= 0 {
+				continue
+			}
+			nb, _ := models.GetNotebook(nid, userID)
+			if nb != nil {
+				validIDs = append(validIDs, nid)
+			}
+		}
+		_ = models.SetNoteNotebooks(id, validIDs)
 	}
 
 	c.JSON(http.StatusOK, note)

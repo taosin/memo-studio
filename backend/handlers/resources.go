@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"io"
 	"mime/multipart"
@@ -17,6 +18,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+func mustUserIDForResource(c *gin.Context) (int, bool) {
+	v, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
+		return 0, false
+	}
+	id, ok := v.(int)
+	if !ok || id <= 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效用户"})
+		return 0, false
+	}
+	return id, true
+}
 
 const maxUploadSize = 20 << 20 // 20MB
 
@@ -137,6 +152,46 @@ func UploadResource(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, res)
+}
+
+// ListResources 获取当前用户的资源列表（分页）
+// GET /api/resources?limit=20&offset=0
+func ListResources(c *gin.Context) {
+	userID, ok := mustUserIDForResource(c)
+	if !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	result, err := models.ListResourcesByUserID(userID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取资源列表失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// DeleteResourceHandler 删除资源
+// DELETE /api/resources/:id
+func DeleteResourceHandler(c *gin.Context) {
+	userID, ok := mustUserIDForResource(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的资源ID"})
+		return
+	}
+	if err := models.DeleteResource(id, userID); err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "资源不存在或无权删除"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "已删除"})
 }
 
 func sanitizeFilename(s string) string {
