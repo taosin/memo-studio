@@ -1,10 +1,10 @@
 <script>
-  import { onMount } from 'svelte';
-  import { afterNavigate, goto } from '$app/navigation';
-  import { theme, applyTheme, toggleTheme } from '$lib/theme.js';
-  import { api } from '$lib/api.js';
+  import { onMount } from "svelte";
+  import { afterNavigate, goto } from "$app/navigation";
+  import { theme, applyTheme, toggleTheme } from "$lib/theme.js";
+  import { api } from "$lib/api.js";
 
-  let current = 'dark';
+  let current = "dark";
   let authed = false;
   let isAdmin = false;
   const unsub = theme.subscribe((t) => {
@@ -14,14 +14,14 @@
 
   function syncAuth() {
     try {
-      if (typeof localStorage === 'undefined') {
+      if (typeof localStorage === "undefined") {
         authed = false;
         isAdmin = false;
         return;
       }
-      const t = localStorage.getItem('token');
+      const t = localStorage.getItem("token");
       authed = !!t;
-      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
       isAdmin = !!u?.is_admin;
     } catch {
       authed = false;
@@ -40,15 +40,19 @@
   onMount(() => {
     applyTheme(current);
     // 生产环境注册 Service Worker
-    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
-      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    if (
+      typeof navigator !== "undefined" &&
+      "serviceWorker" in navigator &&
+      import.meta.env.PROD
+    ) {
+      navigator.serviceWorker.register("/service-worker.js").catch(() => {});
     }
 
     syncAuth();
-    window.addEventListener('storage', syncAuth);
+    window.addEventListener("storage", syncAuth);
 
     return () => {
-      window.removeEventListener('storage', syncAuth);
+      window.removeEventListener("storage", syncAuth);
       unsub();
     };
   });
@@ -60,10 +64,21 @@
 
 <div class="app">
   <header class="topbar">
-    <a href="/" class="brand" on:click|preventDefault={() => goto('/')}>Memo Studio</a>
+    <a href="/" class="brand" on:click|preventDefault={() => goto("/")}>
+      <img src="/favicon.svg" alt="" class="brandIcon" width="24" height="24" />
+      Memo Studio
+    </a>
     <div class="hint">极简记录 · Ctrl/Cmd + Enter 保存</div>
     <div class="spacer" />
     {#if authed}
+      <a class="nav" href="/notebooks">笔记本</a>
+      <a class="nav" href="/stats">统计</a>
+      <a class="nav" href="/resources">资源库</a>
+      <a class="nav" href="/tags">标签库</a>
+      <a class="nav" href="/export">导出</a>
+      <a class="nav" href="/import">导入</a>
+      <a class="nav" href="/settings">设置</a>
+      <a class="nav" href="/help">帮助</a>
       <a class="nav" href="/profile">个人信息</a>
       {#if isAdmin}
         <a class="nav" href="/admin/users">用户管理</a>
@@ -72,8 +87,13 @@
     {:else}
       <a class="nav" href="/login">登录</a>
     {/if}
-    <button class="iconBtn" on:click={toggleTheme} aria-label="切换主题" title="切换主题">
-      {#if current === 'dark'}
+    <button
+      class="iconBtn"
+      on:click={toggleTheme}
+      aria-label="切换主题"
+      title="切换主题"
+    >
+      {#if current === "dark"}
         <span class="icon">🌙</span>
       {:else}
         <span class="icon">☀️</span>
@@ -89,7 +109,7 @@
   :global(:root) {
     --bg: #0b1220;
     --panel: rgba(2, 6, 23, 0.35);
-    --panel-2: rgba(2, 6, 23, 0.30);
+    --panel-2: rgba(2, 6, 23, 0.3);
     --text: #e5e7eb;
     --muted: rgba(148, 163, 184, 0.9);
     --border: rgba(148, 163, 184, 0.16);
@@ -99,7 +119,7 @@
     --accent-soft: rgba(34, 197, 94, 0.16);
     --danger: rgba(248, 113, 113, 1);
   }
-  :global(:root[data-theme='light']) {
+  :global(:root[data-theme="light"]) {
     --bg: #f8fafc;
     --panel: rgba(255, 255, 255, 0.85);
     --panel-2: rgba(255, 255, 255, 0.75);
@@ -119,8 +139,16 @@
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
-      Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      Segoe UI,
+      Roboto,
+      Helvetica,
+      Arial,
+      "Apple Color Emoji",
+      "Segoe UI Emoji";
   }
   :global(a) {
     color: inherit;
@@ -143,6 +171,9 @@
     gap: 12px;
   }
   .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     font-weight: 700;
     letter-spacing: 0.2px;
     color: inherit;
@@ -151,6 +182,10 @@
   }
   .brand:hover {
     filter: brightness(1.1);
+  }
+  .brandIcon {
+    flex-shrink: 0;
+    border-radius: 6px;
   }
   .hint {
     font-size: 12px;
@@ -205,4 +240,3 @@
     box-sizing: border-box;
   }
 </style>
-

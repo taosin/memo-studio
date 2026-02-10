@@ -143,6 +143,9 @@ func ListMemos(q MemoQuery) ([]Note, error) {
 		}
 		note.Resources = resources
 
+		notebookIDs, _ := GetNotebookIDsByNoteID(note.ID)
+		note.NotebookIDs = notebookIDs
+
 		notes = append(notes, note)
 	}
 	return notes, rows.Err()

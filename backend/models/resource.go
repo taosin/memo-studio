@@ -108,3 +108,79 @@ func GetResourcesByNoteID(noteID int) ([]Resource, error) {
 	return list, rows.Err()
 }
 
+// ListResourcesResult 资源列表项（含总数）
+type ListResourcesResult struct {
+	Items []Resource `json:"items"`
+	Total int        `json:"total"`
+}
+
+// ListResourcesByUserID 分页列出当前用户的资源
+func ListResourcesByUserID(userID int, limit, offset int) (*ListResourcesResult, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	var total int
+	err := database.DB.QueryRow(
+		`SELECT COUNT(*) FROM resources WHERE user_id = ?`,
+		userID,
+	).Scan(&total)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := database.DB.Query(
+		`SELECT id, user_id, filename, storage_path, mime_type, size, sha256, created_at
+		 FROM resources WHERE user_id = ?
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT ? OFFSET ?`,
+		userID, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []Resource
+	for rows.Next() {
+		var r Resource
+		var user sql.NullInt64
+		if err := rows.Scan(&r.ID, &user, &r.Filename, &r.StoragePath, &r.MimeType, &r.Size, &r.Sha256, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		if user.Valid {
+			v := int(user.Int64)
+			r.UserID = &v
+		}
+		r.StoragePath = normalizeStoragePath(r.StoragePath)
+		r.URL = resourceURL(r.StoragePath)
+		list = append(list, r)
+	}
+	if list == nil {
+		list = []Resource{}
+	}
+	return &ListResourcesResult{Items: list, Total: total}, rows.Err()
+}
+
+// DeleteResource 删除资源（仅删除数据库记录；物理文件可由定时任务清理）
+func DeleteResource(id int, userID int) error {
+	res, err := database.DB.Exec(
+		`DELETE FROM resources WHERE id = ? AND user_id = ?`,
+		id, userID,
+	)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	_, _ = database.DB.Exec(`DELETE FROM note_resources WHERE resource_id = ?`, id)
+	return nil
+}
