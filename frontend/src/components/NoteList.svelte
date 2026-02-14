@@ -21,7 +21,7 @@
   let error = null;
   let searchQuery = '';
   let selectedTags = [];
-  let viewMode = 'waterfall'; // 'waterfall' | 'timeline'
+  let viewMode = 'waterfall';
   let collapsedGroups = new Set();
   let showAdvancedSearch = false;
   let showExportDialog = false;
@@ -36,7 +36,6 @@
 
   onMount(async () => {
     await loadNotes();
-    // 加载搜索历史
     const saved = localStorage.getItem('searchHistory');
     if (saved) {
       try {
@@ -51,7 +50,6 @@
     try {
       loading = true;
       const data = await api.getNotes();
-      // 确保 notes 始终是数组
       notes = Array.isArray(data) ? data : [];
       if (!Array.isArray(data)) {
         console.warn('API 返回的数据不是数组:', data);
@@ -60,7 +58,7 @@
       error = null;
     } catch (err) {
       error = err.message || '加载笔记失败';
-      notes = []; // 出错时设置为空数组
+      notes = [];
       filteredNotes = [];
       console.error('加载笔记失败:', err);
     } finally {
@@ -69,7 +67,6 @@
   }
 
   function filterNotes() {
-    // 确保 notes 是数组
     if (!Array.isArray(notes)) {
       console.warn('notes 不是数组:', notes);
       filteredNotes = [];
@@ -77,7 +74,6 @@
     }
     let filtered = [...notes];
 
-    // 高级搜索过滤
     if (searchFilters.keyword) {
       const query = searchFilters.keyword.toLowerCase();
       filtered = filtered.filter(note => 
@@ -86,7 +82,6 @@
       );
     }
 
-    // 按标签过滤
     const tagsToFilter = searchFilters.tags.length > 0 ? searchFilters.tags : selectedTags;
     if (tagsToFilter.length > 0) {
       filtered = filtered.filter(note => {
@@ -95,7 +90,6 @@
       });
     }
 
-    // 按日期范围过滤
     if (searchFilters.dateFrom) {
       const fromDate = new Date(searchFilters.dateFrom);
       filtered = filtered.filter(note => new Date(note.created_at) >= fromDate);
@@ -106,7 +100,6 @@
       filtered = filtered.filter(note => new Date(note.created_at) <= toDate);
     }
 
-    // 简单搜索（如果高级搜索未使用）
     if (!searchFilters.keyword && searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(note => 
@@ -122,7 +115,6 @@
     const filters = e.detail;
     searchFilters = filters;
     
-    // 保存到搜索历史
     if (filters.keyword || filters.tags.length > 0) {
       const historyItem = {
         keyword: filters.keyword,
@@ -134,7 +126,7 @@
       searchHistory = [historyItem, ...searchHistory.filter(h => 
         h.keyword !== historyItem.keyword || 
         JSON.stringify(h.tags) !== JSON.stringify(historyItem.tags)
-      )].slice(0, 10); // 保留最近10条
+      )].slice(0, 10);
       localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
     }
     
@@ -152,7 +144,7 @@
     } else {
       selectedNoteIds.add(noteId);
     }
-    selectedNoteIds = selectedNoteIds; // 触发更新
+    selectedNoteIds = selectedNoteIds;
   }
 
   async function handleBatchDelete() {
@@ -200,7 +192,6 @@
     if (onQuickEdit) {
       onQuickEdit(noteId);
     } else {
-      // 如果没有提供快速编辑函数，则触发普通点击
       handleNoteClick(noteId);
     }
   }
@@ -216,10 +207,9 @@
     } else {
       collapsedGroups.add(date);
     }
-    collapsedGroups = collapsedGroups; // 触发更新
+    collapsedGroups = collapsedGroups;
   }
 
-  // 按日期分组（用于timeline模式）
   $: groupedNotes = (() => {
     if (viewMode !== 'timeline') return {};
     
@@ -236,9 +226,7 @@
       groups[date].push(note);
     });
     
-    // 按日期排序（需要按实际日期对象排序）
     const sortedDates = Object.keys(groups).sort((a, b) => {
-      // 从日期字符串中提取第一个笔记的创建时间
       const dateA = groups[a][0]?.created_at || '';
       const dateB = groups[b][0]?.created_at || '';
       return new Date(dateB) - new Date(dateA);
@@ -252,6 +240,22 @@
 
   $: {
     filterNotes();
+  }
+
+  // 骨架屏组件
+  function SkeletonCard() {
+    return `
+      <div class="bg-card border border-border/60 rounded-lg p-4 animate-pulse">
+        <div class="h-5 bg-muted rounded w-3/4 mb-3"></div>
+        <div class="h-4 bg-muted rounded w-full mb-2"></div>
+        <div class="h-4 bg-muted rounded w-5/6 mb-2"></div>
+        <div class="h-4 bg-muted rounded w-4/6 mb-4"></div>
+        <div class="flex gap-2">
+          <div class="h-5 bg-muted rounded w-16"></div>
+          <div class="h-5 bg-muted rounded w-16"></div>
+        </div>
+      </div>
+    `;
   }
 </script>
 
@@ -331,20 +335,59 @@
     />
 
     {#if loading}
-      <div class="text-center py-12 text-muted-foreground">加载中...</div>
+      <!-- 加载骨架屏 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {#each Array(8) as _, i}
+          <div class="bg-card border border-border/60 rounded-lg p-4 animate-pulse" key={i}>
+            <div class="h-5 bg-muted rounded w-3/4 mb-3"></div>
+            <div class="h-4 bg-muted rounded w-full mb-2"></div>
+            <div class="h-4 bg-muted rounded w-5/6 mb-2"></div>
+            <div class="h-4 bg-muted rounded w-4/6 mb-4"></div>
+            <div class="flex gap-2">
+              <div class="h-5 bg-muted rounded w-16"></div>
+              <div class="h-5 bg-muted rounded w-16"></div>
+            </div>
+          </div>
+        {/each}
+      </div>
     {:else if error}
-      <div class="text-center py-12 text-destructive">错误: {error}</div>
+      <!-- 错误状态 -->
+      <div class="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+        <div class="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-destructive">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold mb-2">加载失败</h3>
+        <p class="text-muted-foreground mb-4">{error}</p>
+        <Button on:click={loadNotes}>重试</Button>
+      </div>
     {:else if filteredNotes.length === 0}
-      <div class="text-center py-12 text-muted-foreground">
-        <p>没有找到笔记</p>
+      <!-- 空状态 -->
+      <div class="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+        <div class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold mb-2">还没有笔记</h3>
+        <p class="text-muted-foreground mb-4">点击右上角按钮创建你的第一篇笔记</p>
       </div>
     {:else if viewMode === 'waterfall'}
       <!-- 瀑布流模式 -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {#each filteredNotes as note (note.id)}
-          <div class="relative">
+        {#each filteredNotes as note, index (note.id)}
+          <div 
+            class="relative animate-fade-in" 
+            style="animation-delay: {index * 50}ms"
+          >
             {#if selectedNoteIds.has(note.id)}
-              <div class="absolute top-2 right-2 z-10 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs">
+              <div class="absolute top-2 right-2 z-10 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md">
                 ✓
               </div>
             {/if}
@@ -356,7 +399,7 @@
             />
             <input
               type="checkbox"
-              class="absolute top-2 left-2 z-10"
+              class="absolute top-2 left-2 z-10 w-5 h-5 cursor-pointer"
               checked={selectedNoteIds.has(note.id)}
               on:change={() => toggleNoteSelection(note.id)}
               on:click|stopPropagation
@@ -367,8 +410,11 @@
     {:else}
       <!-- Timeline 模式 -->
       <div class="space-y-6">
-        {#each Object.entries(groupedNotes) as [date, dateNotes]}
-          <div class="border-l-2 border-primary/20 pl-4">
+        {#each Object.entries(groupedNotes) as [date, dateNotes], index}
+          <div 
+            class="border-l-2 border-primary/20 pl-4 animate-slide-down"
+            style="animation-delay: {index * 100}ms"
+          >
             <div 
               class="flex items-center gap-2 mb-4 cursor-pointer hover:text-primary transition-colors"
               role="button"
@@ -376,16 +422,23 @@
               on:click={() => toggleGroup(date)}
               on:keydown={(e) => e.key === 'Enter' && toggleGroup(date)}
             >
-              <span class="text-xs">{collapsedGroups.has(date) ? '▶' : '▼'}</span>
+              <span class="text-xs transition-transform duration-200" class:rotate-90={!collapsedGroups.has(date)}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </span>
               <h3 class="text-lg font-semibold">{date}</h3>
               <span class="text-xs text-muted-foreground">({dateNotes.length})</span>
             </div>
             {#if !collapsedGroups.has(date)}
-              <div class="space-y-3 ml-6">
-                {#each dateNotes as note (note.id)}
-                  <div class="relative">
+              <div class="space-y-3 ml-4">
+                {#each dateNotes as note, noteIndex (note.id)}
+                  <div 
+                    class="relative animate-fade-in"
+                    style="animation-delay: {noteIndex * 50}ms"
+                  >
                     {#if selectedNoteIds.has(note.id)}
-                      <div class="absolute top-2 right-2 z-10 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                      <div class="absolute top-2 right-2 z-10 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md">
                         ✓
                       </div>
                     {/if}
@@ -397,7 +450,7 @@
                     />
                     <input
                       type="checkbox"
-                      class="absolute top-2 left-2 z-10"
+                      class="absolute top-2 left-2 z-10 w-5 h-5 cursor-pointer"
                       checked={selectedNoteIds.has(note.id)}
                       on:change={() => toggleNoteSelection(note.id)}
                       on:click|stopPropagation

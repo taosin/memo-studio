@@ -2,7 +2,6 @@ package models
 
 import (
 	"database/sql"
-	"log"
 	"memo-studio/backend/database"
 	"strconv"
 	"strings"
@@ -231,10 +230,6 @@ func GetNote(id int) (*Note, error) {
 	// 清理 content 字段（只清理 [object Object] 字符串）
 	note.Content = cleanContent(note.Content)
 	note.Title = cleanContent(note.Title)
-	
-	// 调试日志
-	log.Printf("[GetNote] 读取 - ID: %d, Title: %q (len: %d), Content: %q (len: %d)", 
-		note.ID, note.Title, len(note.Title), note.Content, len(note.Content))
 
 	// 获取标签
 	tags, err := GetTagsByNoteID(id)
@@ -288,12 +283,6 @@ func GetAllNotes() ([]Note, error) {
 		// 清理 content 和 title 字段（只清理 [object Object] 字符串）
 		note.Content = cleanContent(note.Content)
 		note.Title = cleanContent(note.Title)
-		
-		// 调试日志（只记录前几条）
-		if len(notes) < 3 {
-			log.Printf("[GetAllNotes] 读取 - ID: %d, Title: %q (len: %d), Content: %q (len: %d)", 
-				note.ID, note.Title, len(note.Title), note.Content, len(note.Content))
-		}
 
 		// 获取标签
 		tags, err := GetTagsByNoteID(note.ID)

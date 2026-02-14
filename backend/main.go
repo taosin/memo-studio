@@ -14,7 +14,6 @@ import (
 	"path"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -43,17 +42,16 @@ func main() {
 		r.Use(gin.Logger())
 	}
 
-	// 安全响应头（线上可用）
+	// 安全响应头
 	r.Use(func(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "SAMEORIGIN")
 		c.Header("X-XSS-Protection", "1; mode=block")
+		c.Header("X-Robots-Tag", "noindex, nofollow")
 		c.Next()
 	})
 
 	// 配置 CORS
-	// - 生产建议显式设置 MEMO_CORS_ORIGINS（逗号分隔）
-	// - 未设置时默认放开（方便自部署），但可按需收紧
 	config := cors.DefaultConfig()
 	if origins := strings.TrimSpace(os.Getenv("MEMO_CORS_ORIGINS")); origins != "" {
 		parts := strings.Split(origins, ",")
@@ -70,87 +68,142 @@ func main() {
 			config.AllowAllOrigins = true
 		}
 	} else {
+		// 开发环境默认放开，生产环境建议设置
+		if os.Getenv("MEMO_ENV") == "production" {
+			log.Printf("[WARNING] 生产环境未设置 MEMO_CORS_ORIGINS，建议配置以提高安全性")
+		}
 		config.AllowAllOrigins = true
 	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	r.Use(cors.New(config))
 
-	// 健康检查端点
+	// 健康检查端点（公开，无速率限制）
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok", "service": "memo-studio-backend"})
+		c.JSON(200, gin.H{"status": "ok", "service": "memo-studio-backend", "version": "v1"})
 	})
 
 	// 附件静态服务（/uploads -> 本地存储目录）
-	// 默认 ./storage，可通过 MEMO_STORAGE_DIR 配置
 	storageDir := os.Getenv("MEMO_STORAGE_DIR")
 	if strings.TrimSpace(storageDir) == "" {
 		storageDir = "./storage"
 	}
 	r.Static("/uploads", storageDir)
 
-	// 公开路由（仅登录/注册）
-	public := r.Group("/api")
+	// ===== API v1 =====
+	v1 := r.Group("/api/v1")
 	{
-		public.POST("/auth/login", handlers.Login)
-		public.POST("/auth/register", handlers.Register)
+		// 公开路由（登录/注册）- 带速率限制
+		v1.Use(middleware.RateLimitMiddleware())
+		{
+			v1.POST("/auth/login", handlers.Login)
+			v1.POST("/auth/register", handlers.Register)
+		}
+
+		// 需要认证的路由
+		api := v1.Group("/")
+		api.Use(middleware.AuthMiddleware())
+		{
+			api.GET("/auth/me", handlers.GetCurrentUser)
+			api.GET("/users/me", handlers.GetMe)
+			api.PUT("/users/me", handlers.UpdateMe)
+			api.PUT("/users/me/password", handlers.ChangeMyPassword)
+
+			api.GET("/memos", handlers.ListMemos)
+			api.POST("/memos", handlers.CreateMemo)
+			api.PUT("/memos/:id", handlers.UpdateMemo)
+			api.DELETE("/memos/:id", handlers.DeleteMemo)
+
+			api.GET("/notes", handlers.GetNotes)
+			api.POST("/notes", handlers.CreateNote)
+			api.GET("/notes/:id", handlers.GetNote)
+			api.PUT("/notes/:id", handlers.UpdateNote)
+			api.DELETE("/notes/:id", handlers.DeleteNote)
+			api.DELETE("/notes/batch", handlers.DeleteNotes)
+			api.GET("/search", handlers.SearchNotes)
+
+			api.GET("/tags", handlers.GetTags)
+			api.POST("/tags", handlers.CreateTag)
+			api.PUT("/tags/:id", handlers.UpdateTag)
+			api.DELETE("/tags/:id", handlers.DeleteTag)
+			api.POST("/tags/merge", handlers.MergeTags)
+
+			api.GET("/review/random", handlers.RandomReview)
+
+			api.GET("/resources", handlers.ListResources)
+			api.POST("/resources", handlers.UploadResource)
+			api.DELETE("/resources/:id", handlers.DeleteResourceHandler)
+
+			api.GET("/notebooks", handlers.ListNotebooks)
+			api.GET("/notebooks/:id", handlers.GetNotebook)
+			api.POST("/notebooks", handlers.CreateNotebook)
+			api.PUT("/notebooks/:id", handlers.UpdateNotebook)
+			api.DELETE("/notebooks/:id", handlers.DeleteNotebook)
+			api.GET("/notebooks/:id/notes", handlers.ListNotebookNotes)
+
+			api.GET("/stats", handlers.GetStats)
+			api.GET("/export", handlers.ExportNotes)
+			api.POST("/import", handlers.ImportNotes)
+
+			// 用户管理（管理员）
+			admin := api.Group("/users")
+			admin.Use(middleware.AdminOnly())
+			{
+				admin.GET("", handlers.AdminListUsers)
+				admin.POST("", handlers.AdminCreateUser)
+				admin.PUT("/:id", handlers.AdminUpdateUser)
+				admin.DELETE("/:id", handlers.AdminDeleteUser)
+			}
+		}
 	}
 
-	// 需要认证的路由（保留旧能力）
-	api := r.Group("/api")
-	api.Use(middleware.AuthMiddleware())
+	// ===== 旧 API 兼容（已废弃，建议迁移到 /api/v1）=====
+	// 这些路由将在未来版本中移除
+	legacy := r.Group("/api")
+	legacy.Use(middleware.AuthMiddleware())
 	{
-		api.GET("/auth/me", handlers.GetCurrentUser)
-		// 用户信息（新接口）
-		api.GET("/users/me", handlers.GetMe)
-		api.PUT("/users/me", handlers.UpdateMe)
-		api.PUT("/users/me/password", handlers.ChangeMyPassword)
+		legacy.GET("/auth/me", handlers.GetCurrentUser)
+		legacy.GET("/users/me", handlers.GetMe)
+		legacy.PUT("/users/me", handlers.UpdateMe)
+		legacy.PUT("/users/me/password", handlers.ChangeMyPassword)
 
-		// memos（新接口：需要登录）
-		api.GET("/memos", handlers.ListMemos)
-		api.POST("/memos", handlers.CreateMemo)
-		api.PUT("/memos/:id", handlers.UpdateMemo)
-		api.DELETE("/memos/:id", handlers.DeleteMemo)
+		legacy.GET("/memos", handlers.ListMemos)
+		legacy.POST("/memos", handlers.CreateMemo)
+		legacy.PUT("/memos/:id", handlers.UpdateMemo)
+		legacy.DELETE("/memos/:id", handlers.DeleteMemo)
 
-		// legacy notes/search：保持旧前端可用（需要登录，内部按 user_id 隔离）
-		api.GET("/notes", handlers.GetNotes)
-		api.POST("/notes", handlers.CreateNote)
-		api.GET("/notes/:id", handlers.GetNote)
-		api.PUT("/notes/:id", handlers.UpdateNote)
-		api.DELETE("/notes/:id", handlers.DeleteNote)
-		api.DELETE("/notes/batch", handlers.DeleteNotes)
-		api.GET("/search", handlers.SearchNotes)
+		legacy.GET("/notes", handlers.GetNotes)
+		legacy.POST("/notes", handlers.CreateNote)
+		legacy.GET("/notes/:id", handlers.GetNote)
+		legacy.PUT("/notes/:id", handlers.UpdateNote)
+		legacy.DELETE("/notes/:id", handlers.DeleteNote)
+		legacy.DELETE("/notes/batch", handlers.DeleteNotes)
+		legacy.GET("/search", handlers.SearchNotes)
 
-		// tags（需要登录）
-		api.GET("/tags", handlers.GetTags)
-		api.POST("/tags", handlers.CreateTag)
-		api.PUT("/tags/:id", handlers.UpdateTag)
-		api.DELETE("/tags/:id", handlers.DeleteTag)
-		api.POST("/tags/merge", handlers.MergeTags)
+		legacy.GET("/tags", handlers.GetTags)
+		legacy.POST("/tags", handlers.CreateTag)
+		legacy.PUT("/tags/:id", handlers.UpdateTag)
+		legacy.DELETE("/tags/:id", handlers.DeleteTag)
+		legacy.POST("/tags/merge", handlers.MergeTags)
 
-		// review（需要登录）
-		api.GET("/review/random", handlers.RandomReview)
+		legacy.GET("/review/random", handlers.RandomReview)
 
-		// resources（附件上传、资源库列表与删除）
-		api.GET("/resources", handlers.ListResources)
-		api.POST("/resources", handlers.UploadResource)
-		api.DELETE("/resources/:id", handlers.DeleteResourceHandler)
+		legacy.GET("/resources", handlers.ListResources)
+		legacy.POST("/resources", handlers.UploadResource)
+		legacy.DELETE("/resources/:id", handlers.DeleteResourceHandler)
 
-		// notebooks（笔记本分类）
-		api.GET("/notebooks", handlers.ListNotebooks)
-		api.GET("/notebooks/:id", handlers.GetNotebook)
-		api.POST("/notebooks", handlers.CreateNotebook)
-		api.PUT("/notebooks/:id", handlers.UpdateNotebook)
-		api.DELETE("/notebooks/:id", handlers.DeleteNotebook)
-		api.GET("/notebooks/:id/notes", handlers.ListNotebookNotes)
+		legacy.GET("/notebooks", handlers.ListNotebooks)
+		legacy.GET("/notebooks/:id", handlers.GetNotebook)
+		legacy.POST("/notebooks", handlers.CreateNotebook)
+		legacy.PUT("/notebooks/:id", handlers.UpdateNotebook)
+		legacy.DELETE("/notebooks/:id", handlers.DeleteNotebook)
+		legacy.GET("/notebooks/:id/notes", handlers.ListNotebookNotes)
 
-		// 统计与导出导入
-		api.GET("/stats", handlers.GetStats)
-		api.GET("/export", handlers.ExportNotes)
-		api.POST("/import", handlers.ImportNotes)
+		legacy.GET("/stats", handlers.GetStats)
+		legacy.GET("/export", handlers.ExportNotes)
+		legacy.POST("/import", handlers.ImportNotes)
 
-		// 用户管理（管理员）
-		admin := api.Group("/users")
+		admin := legacy.Group("/users")
 		admin.Use(middleware.AdminOnly())
 		{
 			admin.GET("", handlers.AdminListUsers)
@@ -160,22 +213,21 @@ func main() {
 		}
 	}
 
-	// 静态文件托管（用于部署：Go 服务直接提供前端）
+	// 静态文件托管
 	staticFS, err := fs.Sub(publicFiles, "public")
 	if err != nil {
 		log.Fatal("静态文件目录初始化失败:", err)
 	}
 	fileServer := http.FileServer(http.FS(staticFS))
 
-	// SPA fallback：非 /api 路径都回退到 index.html
+	// SPA fallback
 	r.NoRoute(func(c *gin.Context) {
 		p := c.Request.URL.Path
-		if strings.HasPrefix(p, "/api") || strings.HasPrefix(p, "/health") {
+		if strings.HasPrefix(p, "/api") || p == "/health" {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
 
-		// 尝试直接命中静态资源
 		clean := strings.TrimPrefix(path.Clean("/"+p), "/")
 		if clean == "" || clean == "." {
 			clean = "index.html"
@@ -189,34 +241,40 @@ func main() {
 			return
 		}
 
-		// 兜底：返回 index.html（给前端路由）
 		c.Request.URL.Path = "/index.html"
 		fileServer.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
 	})
 
-	// 启动服务器（支持优雅关闭）
+	// 启动服务器
 	port := strings.TrimSpace(os.Getenv("PORT"))
 	if port == "" {
 		port = "9000"
 	}
+
+	// 生产环境检查必要配置
+	if os.Getenv("MEMO_ENV") == "production" {
+		if os.Getenv("MEMO_JWT_SECRET") == "" {
+			log.Printf("[WARNING] 生产环境未设置 MEMO_JWT_SECRET")
+		}
+	}
+
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: r,
 	}
 	go func() {
-		log.Println("服务器启动在 :" + port)
+		log.Printf("🚀 Memo Studio 服务器启动在 :%s (API v1)", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("服务器启动失败:", err)
 		}
 	}()
 
-	// 优雅关闭：监听 SIGINT / SIGTERM
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("正在关闭服务器...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.Background()
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("服务器强制关闭:", err)

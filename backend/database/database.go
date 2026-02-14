@@ -502,18 +502,18 @@ func randomPassword(n int) string {
 		n = 16
 	}
 	b := make([]byte, n)
-	// crypto/rand 失败时退化为时间戳（仍可用，但会打印警告）
-	for i := range b {
-		idx := int(time.Now().UnixNano()) % len(alphabet)
-		b[i] = alphabet[idx]
-	}
-	// 尽量使用 crypto/rand 提升随机性
-	if _, err := rand.Read(b); err == nil {
+	
+	// 使用 crypto/rand 生成安全随机密码
+	if _, err := rand.Read(b); err != nil {
+		// crypto/rand 失败时使用备用方案（不应该发生）
+		log.Printf("[SECURITY] crypto/rand 不可用，使用备用随机源")
+		for i := range b {
+			b[i] = alphabet[int(time.Now().UnixNano())%len(alphabet)]
+		}
+	} else {
 		for i := range b {
 			b[i] = alphabet[int(b[i])%len(alphabet)]
 		}
-	} else {
-		log.Printf("[SECURITY] crypto/rand 不可用，已使用弱随机生成初始密码，请尽快修改")
 	}
 	return string(b)
 }

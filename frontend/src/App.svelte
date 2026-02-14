@@ -11,24 +11,22 @@
   import Button from '$lib/components/ui/button/button.svelte';
   import { api } from './utils/api.js';
 
-  let currentView = 'list'; // 'list', 'detail', 'editor', 'profile'
+  let currentView = 'list';
   let selectedNoteId = null;
   let editingNote = null;
-  let listKey = 0; // 用于强制刷新列表
-  let notes = []; // 用于快速编辑
+  let listKey = 0;
+  let notes = [];
+  let previousView = '';
 
   $: isAuthenticated = $authStore.isAuthenticated;
 
   function handleAuthSuccess() {
-    // 登录成功后刷新页面或跳转到列表页
     currentView = 'list';
   }
 
   onMount(() => {
-    // 监听登录成功事件
     window.addEventListener('auth-success', handleAuthSuccess);
     
-    // 检查是否已登录
     if ($authStore.isAuthenticated) {
       verifyToken();
     }
@@ -43,22 +41,24 @@
       const user = await api.getCurrentUser();
       authStore.setUser(user);
     } catch (err) {
-      // Token 无效，清除认证信息
       authStore.logout();
     }
   }
 
   function handleNoteClick(noteId) {
+    previousView = currentView;
     selectedNoteId = noteId;
     currentView = 'detail';
   }
 
   function handleNewNote() {
+    previousView = currentView;
     editingNote = null;
     currentView = 'editor';
   }
 
   function handleEditNote(note) {
+    previousView = currentView;
     editingNote = note;
     currentView = 'editor';
   }
@@ -70,6 +70,7 @@
   }
 
   function handleProfile() {
+    previousView = currentView;
     currentView = 'profile';
   }
 
@@ -81,11 +82,10 @@
   function handleSave() {
     currentView = 'list';
     editingNote = null;
-    listKey++; // 触发列表刷新
+    listKey++;
   }
 
   async function handleQuickEdit(noteId) {
-    // 快速编辑：直接进入编辑模式
     try {
       const note = await api.getNote(noteId);
       handleEditNote(note);
@@ -99,20 +99,32 @@
   <LoginPage />
 {:else}
   <div class="min-h-screen flex flex-col bg-background">
-    <header class="sticky top-0 z-50 w-full border-b bg-card">
+    <header class="sticky top-0 z-50 w-full border-b bg-card/80 backdrop-blur-md">
       <div class="container mx-auto px-4">
         <div class="flex h-14 sm:h-16 items-center justify-between">
           <button
-            class="text-xl sm:text-2xl font-semibold cursor-pointer select-none bg-transparent border-none p-0 text-left"
+            class="text-xl sm:text-2xl font-bold cursor-pointer select-none bg-transparent border-none p-0 text-left flex items-center gap-2 hover:opacity-80 transition-opacity"
             on:click={handleBack}
           >
-            📝 Memo Studio
+            <span class="text-2xl">📝</span>
+            <span class="hidden sm:inline bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
+              Memo Studio
+            </span>
           </button>
           <div class="flex items-center gap-2 sm:gap-4">
             {#if currentView === 'list'}
-              <Button on:click={handleNewNote} size="sm" class="text-xs sm:text-sm">+ 新建</Button>
-              <Button variant="ghost" size="sm" on:click={handleProfile}>
-                👤
+              <Button on:click={handleNewNote} size="sm" class="text-xs sm:text-sm shadow-sm hover:shadow-md transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                新建
+              </Button>
+              <Button variant="ghost" size="sm" on:click={handleProfile} class="hover:bg-accent transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
               </Button>
             {/if}
             <ThemeToggle />
@@ -129,23 +141,29 @@
           onQuickEdit={handleQuickEdit}
         />
       {:else if currentView === 'detail'}
-        <NoteDetail 
-          noteId={selectedNoteId} 
-          on:back={handleBack}
-          on:edit={(e) => handleEditNote(e.detail)}
-          on:deleted={() => {
-            listKey++;
-            handleBack();
-          }}
-        />
+        <div class="animate-fade-in">
+          <NoteDetail 
+            noteId={selectedNoteId} 
+            on:back={handleBack}
+            on:edit={(e) => handleEditNote(e.detail)}
+            on:deleted={() => {
+              listKey++;
+              handleBack();
+            }}
+          />
+        </div>
       {:else if currentView === 'editor'}
-        <NoteEditor 
-          note={editingNote}
-          on:save={handleSave}
-          on:cancel={handleBack}
-        />
+        <div class="animate-scale-in">
+          <NoteEditor 
+            note={editingNote}
+            on:save={handleSave}
+            on:cancel={handleBack}
+          />
+        </div>
       {:else if currentView === 'profile'}
-        <ProfilePage on:logout={handleLogout} />
+        <div class="animate-fade-in">
+          <ProfilePage on:logout={handleLogout} />
+        </div>
       {/if}
     </main>
   </div>
