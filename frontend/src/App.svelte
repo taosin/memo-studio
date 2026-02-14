@@ -8,15 +8,21 @@
   import FlomoEditor from './components/FlomoEditor.svelte';
   import ProfilePage from './components/ProfilePage.svelte';
   import ThemeToggle from './components/ThemeToggle.svelte';
+  import KeyboardManager from './components/KeyboardManager.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
   import { api } from './utils/api.js';
+  import { exportData } from './utils/exportImport.js';
+  import { saveDraft } from './utils/backup.js';
 
   let currentView = 'list';
   let selectedNoteId = null;
   let editingNote = null;
   let listKey = 0;
   let showEditor = false;
-  let editorMode = 'create'; // 'create' | 'edit'
+  let editorMode = 'create';
+  let viewMode = 'timeline';
+  let sidebarCollapsed = false;
+  let keyboardManager;
 
   $: isAuthenticated = $authStore.isAuthenticated;
 
@@ -45,7 +51,6 @@
   }
 
   function handleNoteClick(noteId) {
-    previousView = currentView;
     selectedNoteId = noteId;
     currentView = 'detail';
   }
@@ -69,7 +74,6 @@
   }
 
   function handleProfile() {
-    previousView = currentView;
     currentView = 'profile';
   }
 
@@ -82,7 +86,6 @@
     showEditor = false;
     editingNote = null;
     listKey++;
-    // 如果在详情页，返回列表
     if (currentView === 'detail') {
       currentView = 'list';
       selectedNoteId = null;
@@ -102,12 +105,141 @@
       console.error('获取笔记失败:', err);
     }
   }
+
+  // 键盘事件处理
+  function handleFocusSearch() {
+    // 触发搜索栏聚焦
+    const searchInput = document.querySelector('.search-bar input');
+    if (searchInput) searchInput.focus();
+  }
+
+  function handleSaveEditor() {
+    // 触发编辑器保存
+    const saveBtn = document.querySelector('.flomo-editor .save-btn');
+    if (saveBtn) saveBtn.click();
+  }
+
+  function handleCloseAll() {
+    if (showEditor) {
+      handleEditorCancel();
+    } else if (currentView !== 'list') {
+      handleBack();
+    }
+  }
+
+  function handleNewNoteKey() {
+    handleNewNote();
+  }
+
+  function handleEdit() {
+    // 编辑当前选中的笔记
+    if (selectedNoteId) {
+      handleQuickEdit(selectedNoteId);
+    }
+  }
+
+  function handleDelete() {
+    // 删除当前笔记
+    if (selectedNoteId && confirm('确定删除此笔记吗？')) {
+      api.deleteNote(selectedNoteId).then(() => {
+        listKey++;
+        handleBack();
+      });
+    }
+  }
+
+  function handleNavigate(e) {
+    // 笔记列表导航
+    const direction = e.detail.direction;
+    const notes = document.querySelectorAll('.note-card, .note-item');
+    if (notes.length === 0) return;
+    
+    const active = document.activeElement;
+    let index = -1;
+    notes.forEach((note, i) => {
+      if (note === active || note.contains(active)) index = i;
+    });
+    
+    if (direction === 'down') {
+      index = Math.min(index + 1, notes.length - 1);
+    } else {
+      index = Math.max(index - 1, 0);
+    }
+    
+    if (notes[index]) {
+      notes[index].focus();
+      if (notes[index].scrollIntoView) {
+        notes[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }
+
+  function handleChangeView(e) {
+    viewMode = e.detail.mode;
+  }
+
+  function handleToggleSidebar() {
+    sidebarCollapsed = !sidebarCollapsed;
+  }
+
+  function handleShowTags() {
+    // 显示标签面板
+    const tagButton = document.querySelector('.tag-tree-toggle');
+    if (tagButton) tagButton.click();
+  }
+
+  function handleFocusTagSearch() {
+    const tagSearch = document.querySelector('.tag-search input');
+    if (tagSearch) tagSearch.focus();
+  }
+
+  function handleImport() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json,.md,.txt';
+    fileInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          if (data.notes && Array.isArray(data.notes)) {
+            for (const note of data.notes) {
+              await api.createNote(note);
+            }
+            listKey++;
+            alert(`成功导入 ${data.notes.length} 条笔记`);
+          }
+        } catch (err) {
+          alert('导入失败: ' + err.message);
+        }
+      }
+    };
+    fileInput.click();
+  }
 </script>
 
 {#if !isAuthenticated}
   <LoginPage />
 {:else}
   <div class="min-h-screen flex flex-col bg-background">
+    <!-- 键盘管理器 -->
+    <KeyboardManager
+      bind:this={keyboardManager}
+      on:focusSearch={handleFocusSearch}
+      on:saveEditor={handleSaveEditor}
+      on:closeAll={handleCloseAll}
+      on:newNote={handleNewNoteKey}
+      on:edit={handleEdit}
+      on:delete={handleDelete}
+      on:navigate={handleNavigate}
+      on:changeView={handleChangeView}
+      on:toggleSidebar={handleToggleSidebar}
+      on:showTags={handleShowTags}
+      on:focusTagSearch={handleFocusTagSearch}
+      on:import={handleImport}
+    />
+
     <header class="sticky top-0 z-40 w-full border-b bg-card/80 backdrop-blur-md transition-all duration-300">
       <div class="container mx-auto px-4">
         <div class="flex h-14 sm:h-16 items-center justify-between">
@@ -137,6 +269,8 @@
       {#if currentView === 'list'}
         <NoteList 
           key={listKey} 
+          {viewMode}
+          {sidebarCollapsed}
           on:noteClick={(e) => handleNoteClick(e.detail)}
           onQuickEdit={handleQuickEdit}
         />
@@ -168,7 +302,7 @@
         on:cancel={handleEditorCancel}
       />
     {:else}
-      <!-- 底部浮动按钮（类似 Flomo） -->
+      <!-- 底部浮动按钮 -->
       <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
         <button
           on:click={handleNewNote}
@@ -184,3 +318,10 @@
     {/if}
   </div>
 {/if}
+
+<style>
+  :global(.note-card:focus, .note-item:focus) {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+</style>
