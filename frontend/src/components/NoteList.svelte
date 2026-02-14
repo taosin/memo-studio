@@ -3,6 +3,8 @@
   import { createEventDispatcher } from 'svelte';
   import NoteCard from './NoteCard.svelte';
   import TagTree from './TagTree.svelte';
+  import SearchBar from './SearchBar.svelte';
+  import StatsOverview from './StatsOverview.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
   import { api } from '../utils/api.js';
 
@@ -17,13 +19,10 @@
   let selectedTags = [];
   let viewMode = 'timeline';
   let selectedNoteIds = new Set();
-  let randomNote = null;
-  let showRandomNote = false;
   let sidebarCollapsed = false;
-  let showFilters = false;
 
   onMount(async () => {
-    await Promise.all([loadNotes(), loadRandomNote()]);
+    await loadNotes();
   });
 
   async function loadNotes() {
@@ -39,22 +38,6 @@
       filteredNotes = [];
     } finally {
       loading = false;
-    }
-  }
-
-  async function loadRandomNote() {
-    try {
-      const response = await fetch('/api/review/random', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          randomNote = data[0];
-        }
-      }
-    } catch (err) {
-      // 静默处理
     }
   }
 
@@ -107,7 +90,7 @@
   }
 
   function handleSearch(e) {
-    searchQuery = e.target.value;
+    searchQuery = e.detail;
     filterNotes();
   }
 
@@ -141,7 +124,7 @@
   function formatGroupDate(dateString) {
     const date = new Date(dateString);
     const now = new Date();
-    const diffTime = now - date;
+    const diffTime = Math.abs(now - date);
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays === 0) return '今天';
@@ -162,9 +145,7 @@
       groups[date].push(note);
     });
     
-    const sortedDates = Object.keys(groups).sort((a, b) => {
-      return new Date(b) - new Date(a);
-    });
+    const sortedDates = Object.keys(groups).sort((a, b) => new Date(b) - new Date(a));
     
     return sortedDates.reduce((acc, key) => {
       acc[key] = groups[key];
@@ -189,20 +170,17 @@
         {/if}
       </div>
 
+      <!-- 统计概览 -->
+      {#if !sidebarCollapsed}
+        <div class="mb-4">
+          <StatsOverview />
+        </div>
+      {/if}
+
       <!-- 搜索栏 -->
       {#if !sidebarCollapsed}
-        <div class="relative mb-4">
-          <input
-            type="text"
-            placeholder="搜索..."
-            value={searchQuery}
-            on:input={handleSearch}
-            class="w-full h-10 pl-10 pr-4 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-          />
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
+        <div class="mb-4">
+          <SearchBar on:search={handleSearch} />
         </div>
       {/if}
 
@@ -362,9 +340,8 @@
               添加标签
             </span>
             <span class="flex items-center gap-1">
-              <kbd class="px-2 py-0.5 bg-muted rounded text-xs">Ctrl</kbd>
-              <kbd class="px-2 py-0.5 bg-muted rounded text-xs">Enter</kbd>
-              快速保存
+              <kbd class="px-2 py-0.5 bg-muted rounded text-xs">/</kbd>
+              搜索
             </span>
           </div>
         </div>
