@@ -5,7 +5,7 @@
   import LoginPage from './components/LoginPage.svelte';
   import NoteList from './components/NoteList.svelte';
   import NoteDetail from './components/NoteDetail.svelte';
-  import NoteEditor from './components/NoteEditor.svelte';
+  import FlomoEditor from './components/FlomoEditor.svelte';
   import ProfilePage from './components/ProfilePage.svelte';
   import ThemeToggle from './components/ThemeToggle.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
@@ -15,8 +15,8 @@
   let selectedNoteId = null;
   let editingNote = null;
   let listKey = 0;
-  let notes = [];
-  let previousView = '';
+  let showEditor = false;
+  let editorMode = 'create'; // 'create' | 'edit'
 
   $: isAuthenticated = $authStore.isAuthenticated;
 
@@ -26,7 +26,6 @@
 
   onMount(() => {
     window.addEventListener('auth-success', handleAuthSuccess);
-    
     if ($authStore.isAuthenticated) {
       verifyToken();
     }
@@ -52,15 +51,15 @@
   }
 
   function handleNewNote() {
-    previousView = currentView;
     editingNote = null;
-    currentView = 'editor';
+    editorMode = 'create';
+    showEditor = true;
   }
 
   function handleEditNote(note) {
-    previousView = currentView;
     editingNote = note;
-    currentView = 'editor';
+    editorMode = 'edit';
+    showEditor = true;
   }
 
   function handleBack() {
@@ -80,9 +79,19 @@
   }
 
   function handleSave() {
-    currentView = 'list';
+    showEditor = false;
     editingNote = null;
     listKey++;
+    // 如果在详情页，返回列表
+    if (currentView === 'detail') {
+      currentView = 'list';
+      selectedNoteId = null;
+    }
+  }
+
+  function handleEditorCancel() {
+    showEditor = false;
+    editingNote = null;
   }
 
   async function handleQuickEdit(noteId) {
@@ -99,7 +108,7 @@
   <LoginPage />
 {:else}
   <div class="min-h-screen flex flex-col bg-background">
-    <header class="sticky top-0 z-50 w-full border-b bg-card/80 backdrop-blur-md">
+    <header class="sticky top-0 z-40 w-full border-b bg-card/80 backdrop-blur-md transition-all duration-300">
       <div class="container mx-auto px-4">
         <div class="flex h-14 sm:h-16 items-center justify-between">
           <button
@@ -112,28 +121,19 @@
             </span>
           </button>
           <div class="flex items-center gap-2 sm:gap-4">
-            {#if currentView === 'list'}
-              <Button on:click={handleNewNote} size="sm" class="text-xs sm:text-sm shadow-sm hover:shadow-md transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                新建
-              </Button>
-              <Button variant="ghost" size="sm" on:click={handleProfile} class="hover:bg-accent transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-              </Button>
-            {/if}
+            <Button variant="ghost" size="sm" on:click={handleProfile} class="hover:bg-accent transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </Button>
             <ThemeToggle />
           </div>
         </div>
       </div>
     </header>
 
-    <main class="flex-1 container mx-auto px-4 py-4 max-w-[1400px]">
+    <main class="flex-1 container mx-auto px-4 py-4 max-w-[1400px] pb-24">
       {#if currentView === 'list'}
         <NoteList 
           key={listKey} 
@@ -152,19 +152,35 @@
             }}
           />
         </div>
-      {:else if currentView === 'editor'}
-        <div class="animate-scale-in">
-          <NoteEditor 
-            note={editingNote}
-            on:save={handleSave}
-            on:cancel={handleBack}
-          />
-        </div>
       {:else if currentView === 'profile'}
         <div class="animate-fade-in">
           <ProfilePage on:logout={handleLogout} />
         </div>
       {/if}
     </main>
+
+    <!-- Flomo 风格底部编辑器 -->
+    {#if showEditor}
+      <FlomoEditor 
+        note={editingNote}
+        mode={editorMode}
+        on:save={handleSave}
+        on:cancel={handleEditorCancel}
+      />
+    {:else}
+      <!-- 底部浮动按钮（类似 Flomo） -->
+      <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+        <button
+          on:click={handleNewNote}
+          class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary-light text-primary-foreground rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95 transition-all duration-300 group"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="group-hover:rotate-90 transition-transform duration-300">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span class="font-medium">记录灵感</span>
+        </button>
+      </div>
+    {/if}
   </div>
 {/if}
