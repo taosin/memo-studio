@@ -240,6 +240,7 @@
           <button 
             class="w-full flex justify-center py-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             on:click={() => sidebarCollapsed = !sidebarCollapsed}
+            aria-label="展开侧边栏"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="9 18 15 12 9 6"></polyline>
@@ -261,6 +262,7 @@
           <button
             class="md:hidden p-2 rounded-lg hover:bg-accent transition-colors"
             on:click={() => sidebarCollapsed = !sidebarCollapsed}
+            aria-label="打开菜单"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -434,19 +436,21 @@
                       style="animation-delay: {noteIndex * 40}ms"
                     >
                       <!-- 选择指示器 -->
-                      <div 
+                      <button 
+                        type="button"
                         class="absolute -left-3 top-4 w-8 h-8 rounded-full border-2 border-border bg-card flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-sm"
                         class:opacity-100={selectedNoteIds.has(note.id)}
                         class:bg-primary={selectedNoteIds.has(note.id)}
                         class:border-primary={selectedNoteIds.has(note.id)}
                         on:click|stopPropagation={() => toggleNoteSelection(note.id)}
+                        aria-label={selectedNoteIds.has(note.id) ? '取消选择' : '选择笔记'}
                       >
                         {#if selectedNoteIds.has(note.id)}
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-primary-foreground">
                             <polyline points="20 6 9 17 4 12"></polyline>
                           </svg>
                         {/if}
-                      </div>
+                      </button>
 
                       <div class="pl-8">
                         <NoteCard 
@@ -471,19 +475,21 @@
                 style="animation-delay: {index * 30}ms"
               >
                 <!-- 选择指示器 -->
-                <div 
+                <button 
+                  type="button"
                   class="absolute -left-2 top-2 w-6 h-6 rounded-full border-2 border-border bg-card flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
                   class:opacity-100={selectedNoteIds.has(note.id)}
                   class:bg-primary={selectedNoteIds.has(note.id)}
                   class:border-primary={selectedNoteIds.has(note.id)}
                   on:click|stopPropagation={() => toggleNoteSelection(note.id)}
+                  aria-label={selectedNoteIds.has(note.id) ? '取消选择' : '选择笔记'}
                 >
                   {#if selectedNoteIds.has(note.id)}
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-primary-foreground">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   {/if}
-                </div>
+                </button>
 
                 <NoteCard 
                   {note} 

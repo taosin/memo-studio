@@ -152,8 +152,7 @@
 
       <!-- 笔记卡片 -->
       <Card 
-        class="border-2 shadow-lg overflow-hidden"
-        class:shadow-xl={isHovered}
+        class="border-2 shadow-lg overflow-hidden {isHovered ? 'shadow-xl' : ''}"
         on:mouseenter={() => isHovered = true}
         on:mouseleave={() => isHovered = false}
       >

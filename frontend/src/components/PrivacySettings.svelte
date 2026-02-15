@@ -4,7 +4,7 @@
   import Card from '$lib/components/ui/card/card.svelte';
   import CardContent from '$lib/components/ui/card/card-content.svelte';
   import CardHeader from '$lib/components/ui/card/card-header.svelte';
-  import CardTitle from '$lib/components/card-title.svelte';
+  import CardTitle from '$lib/components/ui/card/card-title.svelte';
 
   export let onLogout;
 

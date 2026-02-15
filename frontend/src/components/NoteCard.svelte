@@ -60,15 +60,7 @@
   on:keydown={(e) => e.key === 'Enter' && handleClick()}
 >
   <div 
-    class="relative p-5 rounded-2xl transition-all duration-300"
-    class:bg-card={!isHovered}
-    class:bg-card/80={isHovered}
-    class:shadow-sm={!isHovered}
-    class:shadow-lg={isHovered}
-    class:shadow-primary/5={isHovered}
-    class:border={!isHovered}
-    class:border-border/40={!isHovered}
-    class:border-primary/20={isHovered}
+    class="relative p-5 rounded-2xl transition-all duration-300 {isHovered ? 'bg-card/80 shadow-lg shadow-primary/5 border-primary/20' : 'bg-card shadow-sm border-border/40'}"
   >
     <!-- 标题 -->
     {#if note.title}

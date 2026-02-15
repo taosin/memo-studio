@@ -13,7 +13,7 @@ export async function generateEncryptionKey() {
 // 导出密钥为 base64
 export async function exportKey(key) {
   const exported = await crypto.subtle.exportKey('raw', key);
-  return btoa(String.fromCharCode(...new Uint8Array(exported));
+  return btoa(String.fromCharCode(...new Uint8Array(exported)));
 }
 
 // 从 base64 导入密钥

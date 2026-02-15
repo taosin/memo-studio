@@ -10,6 +10,10 @@
   let searchQuery = '';
   let filteredShortcuts = [];
 
+  function handleCardClick(e) {
+    e.stopPropagation();
+  }
+
   const shortcutGroups = [
     {
       name: '📝 笔记操作',
@@ -111,7 +115,7 @@
 </script>
 
 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" on:click={onClose}>
-  <Card class="w-full max-w-2xl max-h-[80vh] overflow-hidden" on:click|stopPropagation>
+  <Card class="w-full max-w-2xl max-h-[80vh] overflow-hidden" on:click={handleCardClick}>
     <CardHeader class="pb-3 border-b">
       <div class="flex items-center justify-between">
         <CardTitle class="flex items-center gap-2">

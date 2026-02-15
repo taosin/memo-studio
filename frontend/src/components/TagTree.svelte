@@ -44,21 +44,23 @@
 </script>
 
 <div class="w-full">
-  <div 
-    class="flex items-center justify-between p-3 cursor-pointer hover:bg-accent rounded-md transition-colors"
+  <button 
+    type="button"
+    class="flex items-center justify-between p-3 cursor-pointer hover:bg-accent rounded-md transition-colors w-full text-left"
     on:click={toggleCollapse}
   >
     <h3 class="font-semibold text-sm">标签</h3>
     <span class="text-xs text-muted-foreground">
       {collapsed ? '▶' : '▼'}
     </span>
-  </div>
+  </button>
   
   {#if !collapsed}
     <div class="space-y-1 mt-2">
       {#each tags as tag}
-        <div
-          class="flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors {isTagSelected(tag.id) ? 'bg-primary/10 border border-primary' : 'hover:bg-accent'}"
+        <button
+          type="button"
+          class="flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors w-full text-left {isTagSelected(tag.id) ? 'bg-primary/10 border border-primary' : 'hover:bg-accent'}"
           on:click={() => handleTagClick(tag)}
         >
           <Badge
@@ -71,7 +73,7 @@
           <span class="text-xs text-muted-foreground ml-auto">
             {tag.count || 0}
           </span>
-        </div>
+        </button>
       {/each}
     </div>
   {/if}
