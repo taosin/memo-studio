@@ -7,32 +7,16 @@
   let isHovered = false;
 
   function getContentPreview(content) {
-    if (typeof content !== 'string' && content !== null && content !== undefined) {
-      console.warn('NoteCard - content 不是字符串:', typeof content, content);
-    }
-
-    let safeContent = '';
-    if (typeof content === 'string') {
-      safeContent = content;
-    } else if (content === null || content === undefined) {
-      safeContent = '';
-    } else {
-      try {
-        if (typeof content === 'object') {
-          safeContent = JSON.stringify(content);
-        } else {
-          safeContent = String(content);
-        }
-      } catch (e) {
-        safeContent = '';
-      }
-    }
-
-    const textContent = safeContent.replace(/<[^>]*>/g, '').trim();
-    if (textContent.length > 150) {
-      return textContent.substring(0, 150) + '...';
-    }
-    return textContent || '';
+    if (!content) return '';
+    
+    // 统一转换为字符串并去除 HTML 标签
+    const textContent = String(content)
+      .replace(/<[^>]*>/g, '')
+      .trim();
+    
+    return textContent.length > 150 
+      ? textContent.substring(0, 150) + '...' 
+      : textContent;
   }
 
   function handleClick() {
@@ -147,5 +131,10 @@
     <div 
       class="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl bg-gradient-to-b from-primary to-primary/50 opacity-0 group-hover:opacity-100 transition-all duration-300"
     ></div>
+    
+    <!-- 双击编辑提示 -->
+    <div class="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+      双击编辑
+    </div>
   </div>
 </div>

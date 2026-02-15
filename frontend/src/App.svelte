@@ -241,7 +241,7 @@
     />
 
     <header class="sticky top-0 z-40 w-full border-b bg-card/80 backdrop-blur-md transition-all duration-300">
-      <div class="container mx-auto px-4">
+      <div class="container mx-auto px-2 sm:px-4">
         <div class="flex h-14 sm:h-16 items-center justify-between">
           <button
             class="text-xl sm:text-2xl font-bold cursor-pointer select-none bg-transparent border-none p-0 text-left flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -302,11 +302,11 @@
         on:cancel={handleEditorCancel}
       />
     {:else}
-      <!-- 底部浮动按钮 -->
-      <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+      <!-- 底部浮动按钮 - 移动端优化 -->
+      <div class="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in w-[calc(100%-2rem)] sm:w-auto max-w-sm">
         <button
           on:click={handleNewNote}
-          class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary-light text-primary-foreground rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95 transition-all duration-300 group"
+          class="w-full sm:w-auto flex items-center justify-center gap-2 px-5 sm:px-6 py-3 sm:py-3 bg-gradient-to-r from-primary to-primary-light text-primary-foreground rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95 transition-all duration-300 group"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="group-hover:rotate-90 transition-transform duration-300">
             <line x1="12" y1="5" x2="12" y2="19"></line>

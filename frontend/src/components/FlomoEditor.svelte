@@ -54,10 +54,21 @@
     content = e.target.value;
     autoResize();
     
-    // 检测 # 标签触发
-    const lastWord = content.split(/[\s#]/).pop();
-    if (lastWord && !tagInputFocused) {
-      showTags = lastWord.length > 0;
+    // 检测 # 标签触发 - 更精确的检测
+    const lastHashIndex = content.lastIndexOf('#');
+    if (lastHashIndex >= 0) {
+      // 检查 # 后面是否有空格或其他分隔符
+      const afterHash = content.slice(lastHashIndex + 1);
+      const hasSpaceAfter = /\s/.test(afterHash);
+      const hasCommaAfter = afterHash.includes(',');
+      
+      if (!hasSpaceAfter && !hasCommaAfter && afterHash.length > 0 && !tagInputFocused) {
+        showTags = true;
+      } else if (hasSpaceAfter || hasCommaAfter) {
+        showTags = false;
+      }
+    } else {
+      showTags = false;
     }
   }
 

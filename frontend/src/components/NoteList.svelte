@@ -20,6 +20,21 @@
   let viewMode = 'timeline';
   let selectedNoteIds = new Set();
   let sidebarCollapsed = false;
+  let mobileMenuOpen = false;
+
+  // 响应式侧边栏控制
+  function checkMobile() {
+    if (typeof window !== 'undefined') {
+      mobileMenuOpen = window.innerWidth < 768;
+      sidebarCollapsed = window.innerWidth < 768;
+    }
+  }
+
+  onMount(() => {
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  });
 
   onMount(async () => {
     await loadNotes();
@@ -47,8 +62,9 @@
       return;
     }
     
-    let filtered = [...notes];
+    let filtered = notes;
 
+    // 如果有搜索条件才过滤
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(note => 
@@ -57,6 +73,7 @@
       );
     }
 
+    // 如果有标签筛选才过滤
     if (selectedTags.length > 0) {
       filtered = filtered.filter(note => {
         const noteTagIds = (note.tags || []).map(t => t.id);
@@ -157,16 +174,29 @@
 </script>
 
 <div class="flex min-h-screen">
+  <!-- 移动端侧边栏遮罩 -->
+  {#if mobileMenuOpen && !sidebarCollapsed}
+    <div 
+      class="fixed inset-0 bg-black/50 z-30 md:hidden"
+      on:click={() => sidebarCollapsed = true}
+      on:keydown={(e) => e.key === 'Escape' && (sidebarCollapsed = true)}
+      role="button"
+      tabindex="0"
+    ></div>
+  {/if}
+
   <!-- 侧边栏 -->
-  <aside class="w-64 flex-shrink-0 border-r bg-card/50 transition-all duration-300 {sidebarCollapsed ? 'w-16' : ''}">
-    <div class="sticky top-0 h-screen flex flex-col p-4">
+  <aside 
+    class="w-64 flex-shrink-0 border-r bg-card/50 transition-all duration-300 fixed md:relative z-40 h-full {sidebarCollapsed ? 'w-0 md:w-16 -translate-x-full md:translate-x-0' : ''} {mobileMenuOpen ? 'translate-x-0' : ''}"
+  >
+    <div class="sticky top-0 h-screen flex flex-col p-4 overflow-hidden">
       <!-- Logo / 品牌 -->
       <div class="flex items-center gap-3 mb-6">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-lg shadow-primary/20">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-lg shadow-primary/20 flex-shrink-0">
           <span class="text-xl">📝</span>
         </div>
         {#if !sidebarCollapsed}
-          <span class="font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">Memo</span>
+          <span class="font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent whitespace-nowrap">Memo</span>
         {/if}
       </div>
 
@@ -224,41 +254,55 @@
   <main class="flex-1 min-w-0 pb-32">
     <!-- 顶部栏 -->
     <div class="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b">
-      <div class="flex items-center justify-between px-6 py-4">
-        <!-- 视图切换 -->
-        <div class="flex items-center gap-1 bg-secondary/50 rounded-full p-1">
+      <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
+        <!-- 左侧：移动端菜单按钮 + 视图切换 -->
+        <div class="flex items-center gap-2">
+          <!-- 移动端菜单按钮 -->
           <button
-            class="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
-            class:bg-primary={viewMode === 'timeline'}
-            class:text-primary-foreground={viewMode === 'timeline'}
-            class:text-muted-foreground={viewMode !== 'timeline'}
-            on:click={() => handleViewModeChange('timeline')}
+            class="md:hidden p-2 rounded-lg hover:bg-accent transition-colors"
+            on:click={() => sidebarCollapsed = !sidebarCollapsed}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1">
-              <line x1="8" y1="6" x2="21" y2="6"></line>
-              <line x1="8" y1="12" x2="21" y2="12"></line>
-              <line x1="8" y1="18" x2="21" y2="18"></line>
-              <line x1="3" y1="6" x2="3.01" y2="6"></line>
-              <line x1="3" y1="12" x2="3.01" y2="12"></line>
-              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
-            信息流
           </button>
-          <button
-            class="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
-            class:bg-primary={viewMode === 'waterfall'}
-            class:text-primary-foreground={viewMode === 'waterfall'}
-            class:text-muted-foreground={viewMode !== 'waterfall'}
-            on:click={() => handleViewModeChange('waterfall')}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1">
-              <rect x="3" y="3" width="7" height="7"></rect>
-              <rect x="14" y="3" width="7" height="7"></rect>
-              <rect x="14" y="14" width="7" height="7"></rect>
-              <rect x="3" y="14" width="7" height="7"></rect>
-            </svg>
-            卡片
-          </button>
+          
+          <!-- 视图切换 -->
+          <div class="flex items-center gap-1 bg-secondary/50 rounded-full p-0.5 sm:p-1">
+            <button
+              class="px-2 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all"
+              class:bg-primary={viewMode === 'timeline'}
+              class:text-primary-foreground={viewMode === 'timeline'}
+              class:text-muted-foreground={viewMode !== 'timeline'}
+              on:click={() => handleViewModeChange('timeline')}
+            >
+              <span class="hidden sm:inline">信息流</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sm:hidden inline">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            </button>
+            <button
+              class="px-2 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all"
+              class:bg-primary={viewMode === 'waterfall'}
+              class:text-primary-foreground={viewMode === 'waterfall'}
+              class:text-muted-foreground={viewMode !== 'waterfall'}
+              on:click={() => handleViewModeChange('waterfall')}
+            >
+              <span class="hidden sm:inline">卡片</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sm:hidden inline">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            </button>
         </div>
 
         <!-- 右侧操作 -->
@@ -295,10 +339,10 @@
         <div class="space-y-8">
           {#each Array(3) as _, i}
             <div class="animate-pulse">
-              <div class="h-6 w-24 bg-muted rounded-full mb-4"></div>
-              <div class="space-y-3">
-                <div class="h-40 bg-muted rounded-2xl"></div>
-                <div class="h-40 bg-muted rounded-2xl"></div>
+              <div class="h-6 w-20 sm:w-24 bg-muted rounded-full mb-4"></div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="h-36 sm:h-40 bg-muted/50 rounded-2xl"></div>
+                <div class="h-36 sm:h-40 bg-muted/50 rounded-2xl hidden sm:block"></div>
               </div>
             </div>
           {/each}
@@ -321,29 +365,48 @@
 
       <!-- 空状态 -->
       {:else if filteredNotes.length === 0}
-        <div class="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-          <div class="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-primary">
-              <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
-              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
-              <path d="M2 2l7.586 7.586"></path>
-              <circle cx="11" cy="11" r="2"></circle>
-            </svg>
+        <div class="flex flex-col items-center justify-center py-16 sm:py-20 text-center animate-fade-in">
+          <!-- 动态插图 - 使用emoji动画 -->
+          <div class="relative mb-8">
+            <div class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-primary/10 to-primary/5 rounded-full flex items-center justify-center animate-pulse">
+              <span class="text-5xl sm:text-6xl">✨</span>
+            </div>
+            <!-- 浮动装饰 -->
+            <div class="absolute -top-2 -right-2 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center animate-bounce" style="animation-delay: 0.2s">
+              <span class="text-lg">💡</span>
+            </div>
+            <div class="absolute -bottom-1 -left-1 w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center animate-bounce" style="animation-delay: 0.4s">
+              <span class="text-sm">📝</span>
+            </div>
           </div>
-          <h3 class="text-xl font-semibold mb-2">开始记录灵感</h3>
-          <p class="text-muted-foreground mb-6 max-w-sm">
-            点击底部的 + 按钮，记录你的第一条笔记
+          
+          <h3 class="text-xl sm:text-2xl font-bold mb-3 bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
+            {activeFilters > 0 ? '没有找到匹配的笔记' : '开始记录灵感'}
+          </h3>
+          <p class="text-muted-foreground mb-8 max-w-sm mx-auto">
+            {activeFilters > 0 ? '试试调整筛选条件，或者记录一条新笔记' : '点击底部的 ✏️ 按钮，记录你的第一条灵感'}
           </p>
-          <div class="flex items-center gap-6 text-sm text-muted-foreground">
-            <span class="flex items-center gap-1">
-              <kbd class="px-2 py-0.5 bg-muted rounded text-xs">#</kbd>
-              添加标签
-            </span>
-            <span class="flex items-center gap-1">
-              <kbd class="px-2 py-0.5 bg-muted rounded text-xs">/</kbd>
-              搜索
-            </span>
-          </div>
+          
+          {#if activeFilters > 0}
+            <Button on:click={clearFilters} class="mb-4">
+              清除筛选条件
+            </Button>
+          {:else}
+            <div class="flex flex-wrap justify-center gap-4 sm:gap-6 text-sm text-muted-foreground">
+              <span class="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg">
+                <kbd class="px-2 py-0.5 bg-background rounded text-xs shadow-sm">#</kbd>
+                添加标签
+              </span>
+              <span class="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg">
+                <kbd class="px-2 py-0.5 bg-background rounded text-xs shadow-sm">/</kbd>
+                快速搜索
+              </span>
+              <span class="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg">
+                <kbd class="px-2 py-0.5 bg-background rounded text-xs shadow-sm">⌘N</kbd>
+                新建笔记
+              </span>
+            </div>
+          {/if}
         </div>
 
       <!-- 笔记列表 -->
