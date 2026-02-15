@@ -64,7 +64,7 @@
       <h3 class="sectionTitle">常见问题</h3>
       <ul class="list">
         <li><strong>如何备份数据？</strong> 使用「导出」页面，选择 JSON 或 Markdown 格式下载。JSON 含完整数据，Markdown 便于阅读与迁移。</li>
-        <li><strong>如何从别处迁移笔记？</strong> 在「导入」页面粘贴 JSON 数组，格式为 <code>[{"title":"标题","content":"内容","tags":["标签"]}]</code>，点击「开始导入」即可。</li>
+        <li><strong>如何从别处迁移笔记？</strong> 在「导入」页面粘贴 JSON 数组，格式为 <code>[{'{'}"title":"标题","content":"内容","tags":["标签"]{'}'}]</code>，点击「开始导入」即可。</li>
         <li><strong>笔记本和标签有什么区别？</strong> 标签用于分类与筛选（如 #工作 #学习）；笔记本用于按主题归类，一篇笔记可以同时属于多个笔记本。</li>
         <li><strong>置顶笔记在哪里？</strong> 首页列表会优先显示置顶笔记；统计页可查看置顶数量。在笔记详情中可设置置顶。</li>
         <li><strong>随机回顾怎么用？</strong> 在首页或标签页可使用随机回顾功能，系统会随机抽取笔记供你复习，支持按标签、按天数筛选。</li>
