@@ -7,10 +7,15 @@
   let current = "dark";
   let authed = false;
   let isAdmin = false;
+  let navOpen = false;
   const unsub = theme.subscribe((t) => {
     current = t;
     applyTheme(t);
   });
+
+  function closeNav() {
+    navOpen = false;
+  }
 
   function syncAuth() {
     try {
@@ -29,8 +34,10 @@
     }
   }
 
-  // 需要在组件初始化阶段注册（不能放到 onMount 里）
-  afterNavigate(() => syncAuth());
+  afterNavigate(() => {
+    syncAuth();
+    closeNav();
+  });
 
   async function logout() {
     await api.logout();
@@ -68,22 +75,65 @@
       <img src="/favicon.svg" alt="" class="brandIcon" width="24" height="24" />
       Memo Studio
     </a>
-    <div class="hint">极简记录 · Ctrl/Cmd + Enter 保存</div>
-    <div class="spacer" />
+    <div class="hint">极简记录 · Ctrl+Enter 保存</div>
+    <div class="spacer"></div>
     {#if authed}
-      <a class="nav" href="/notebooks">笔记本</a>
-      <a class="nav" href="/stats">统计</a>
-      <a class="nav" href="/resources">资源库</a>
-      <a class="nav" href="/tags">标签库</a>
-      <a class="nav" href="/export">导出</a>
-      <a class="nav" href="/import">导入</a>
-      <a class="nav" href="/settings">设置</a>
-      <a class="nav" href="/help">帮助</a>
-      <a class="nav" href="/profile">个人信息</a>
-      {#if isAdmin}
-        <a class="nav" href="/admin/users">用户管理</a>
+      <nav class="navWrap">
+        <a class="nav" href="/notebooks" on:click={closeNav}>笔记本</a>
+        <a class="nav" href="/stats" on:click={closeNav}>统计</a>
+        <a class="nav" href="/insights" on:click={closeNav}>🧠 洞察</a>
+        <a class="nav" href="/tags" on:click={closeNav}>标签库</a>
+        <a class="nav navMore" href="/locations" on:click={closeNav}>📍 位置</a>
+        <a class="nav navMore" href="/resources" on:click={closeNav}>资源库</a>
+        <a class="nav navMore" href="/stocks" on:click={closeNav}>📈 股票</a>
+        <a class="nav navMore" href="/voice" on:click={closeNav}>🎤 语音</a>
+        <a class="nav navMore" href="/export" on:click={closeNav}>导出</a>
+        <a class="nav navMore" href="/import" on:click={closeNav}>导入</a>
+        <a class="nav navMore" href="/settings" on:click={closeNav}>设置</a>
+        <a class="nav navMore" href="/help" on:click={closeNav}>帮助</a>
+        <a class="nav navMore" href="/profile" on:click={closeNav}>个人信息</a>
+        {#if isAdmin}
+          <a class="nav navMore" href="/admin/users" on:click={closeNav}>用户管理</a>
+        {/if}
+      </nav>
+      <div class="navRight">
+        <button class="navBtn" on:click={logout}>登出</button>
+        <button
+          class="iconBtn menuBtn"
+          on:click={() => (navOpen = !navOpen)}
+          aria-label="更多菜单"
+          aria-expanded={navOpen}
+        >
+          <span class="menuIcon" class:open={navOpen}>☰</span>
+        </button>
+      </div>
+      {#if navOpen}
+        <div
+          class="navOverlay"
+          role="button"
+          tabindex="-1"
+          on:click={closeNav}
+          on:keydown={(e) => e.key === 'Escape' && closeNav()}
+        ></div>
+        <div class="navDropdown" role="menu">
+          <a href="/notebooks" on:click={closeNav}>笔记本</a>
+          <a href="/stats" on:click={closeNav}>统计</a>
+          <a href="/insights" on:click={closeNav}>🧠 洞察</a>
+          <a href="/tags" on:click={closeNav}>标签库</a>
+          <a href="/locations" on:click={closeNav}>📍 位置</a>
+          <a href="/resources" on:click={closeNav}>资源库</a>
+          <a href="/stocks" on:click={closeNav}>📈 股票</a>
+          <a href="/voice" on:click={closeNav}>🎤 语音</a>
+          <a href="/export" on:click={closeNav}>导出</a>
+          <a href="/import" on:click={closeNav}>导入</a>
+          <a href="/settings" on:click={closeNav}>设置</a>
+          <a href="/help" on:click={closeNav}>帮助</a>
+          <a href="/profile" on:click={closeNav}>个人信息</a>
+          {#if isAdmin}
+            <a href="/admin/users" on:click={closeNav}>用户管理</a>
+          {/if}
+        </div>
       {/if}
-      <button class="navBtn" on:click={logout}>登出</button>
     {:else}
       <a class="nav" href="/login">登录</a>
     {/if}
@@ -194,6 +244,97 @@
   .spacer {
     flex: 1;
   }
+  .navWrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .navRight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .menuBtn {
+    display: none;
+  }
+  .navOverlay {
+    display: none;
+  }
+  .navDropdown {
+    display: none;
+  }
+  @media (max-width: 1024px) {
+    .navMore {
+      display: none;
+    }
+  }
+  @media (max-width: 768px) {
+    .hint {
+      display: none;
+    }
+    .navWrap {
+      display: none;
+    }
+    .menuBtn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .menuIcon {
+      font-size: 18px;
+      transition: transform 0.2s ease;
+    }
+    .menuIcon.open {
+      transform: rotate(90deg);
+    }
+    .navOverlay {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.35);
+      z-index: 11;
+      animation: fadeIn 0.2s ease;
+    }
+    .navDropdown {
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 56px;
+      right: 16px;
+      min-width: 180px;
+      max-width: 90vw;
+      max-height: 70vh;
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      z-index: 12;
+      padding: 8px;
+      gap: 2px;
+      animation: slideDown 0.2s ease;
+    }
+    .navDropdown a {
+      padding: 10px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: inherit;
+      font-size: 14px;
+      transition: background 0.15s ease;
+    }
+    .navDropdown a:hover {
+      background: rgba(148, 163, 184, 0.12);
+    }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   .iconBtn {
     border-radius: 10px;
     border: 1px solid var(--border);
@@ -216,9 +357,11 @@
     border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--panel);
+    transition: background 0.15s ease, border-color 0.15s ease;
   }
   .nav:hover {
-    filter: brightness(1.02);
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.22);
   }
   .navBtn {
     font-size: 12px;
@@ -228,9 +371,11 @@
     border: 1px solid var(--border);
     background: var(--panel);
     cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
   }
   .navBtn:hover {
-    filter: brightness(1.02);
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.22);
   }
   .main {
     padding: 16px;
@@ -238,5 +383,13 @@
     width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
+  }
+  @media (max-width: 600px) {
+    .topbar {
+      padding: 10px 12px;
+    }
+    .main {
+      padding: 12px;
+    }
   }
 </style>

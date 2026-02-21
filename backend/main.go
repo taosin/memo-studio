@@ -14,6 +14,7 @@ import (
 	"path"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -132,7 +133,11 @@ func main() {
 
 			api.GET("/resources", handlers.ListResources)
 			api.POST("/resources", handlers.UploadResource)
+			api.POST("/resources/transcribe", handlers.UploadResourceAndTranscribe)
 			api.DELETE("/resources/:id", handlers.DeleteResourceHandler)
+
+			// 语音转文本（独立端点）
+			api.POST("/speech-to-text", handlers.SpeechToTextOnly)
 
 			api.GET("/notebooks", handlers.ListNotebooks)
 			api.GET("/notebooks/:id", handlers.GetNotebook)
@@ -144,6 +149,39 @@ func main() {
 			api.GET("/stats", handlers.GetStats)
 			api.GET("/export", handlers.ExportNotes)
 			api.POST("/import", handlers.ImportNotes)
+
+			// AI 洞察与总结
+			api.POST("/insights", handlers.GetInsight)
+			api.POST("/insights/:type", handlers.GetInsightByType)
+			api.POST("/insights/compare", handlers.CompareInsights)
+			api.POST("/summarize", handlers.SummarizeNote)
+			api.POST("/summarize/batch", handlers.BatchSummarize)
+
+			// 大模型管理
+			api.GET("/models", handlers.GetModels)
+			api.GET("/models/cloud", handlers.GetCloudModels)
+			api.GET("/models/local", handlers.GetLocalModels)
+			api.GET("/models/available", handlers.GetAvailableModels)
+			api.GET("/models/config", handlers.GetModelConfig)
+			api.POST("/models/active", handlers.SetActiveModel)
+			api.POST("/models/local", handlers.AddLocalModel)
+			api.POST("/models/local/health", handlers.CheckLocalHealth)
+			api.POST("/models/test", handlers.TestModelConnection)
+
+			// 位置管理
+			api.PUT("/memos/:id/location", handlers.UpdateNoteLocation)
+			api.POST("/memos/:id/detect-location", handlers.DetectNoteLocation)
+			api.POST("/memos/:id/detect-and-save", handlers.SaveDetectedLocation)
+			api.GET("/notes/by-location", handlers.GetNotesByLocation)
+			api.GET("/locations/stats", handlers.GetLocationsStats)
+			api.POST("/locations/batch-detect", handlers.BatchDetectLocations)
+
+			// 股票分析
+			api.GET("/stocks/search", handlers.SearchStocks)
+			api.GET("/stocks/hot", handlers.GetHotStocks)
+			api.GET("/stocks/:code", handlers.GetStockInfo)
+			api.GET("/stocks/:code/history", handlers.GetStockHistory)
+			api.POST("/stocks/analyze", handlers.AnalyzeStock)
 
 			// 用户管理（管理员）
 			admin := api.Group("/users")
@@ -158,7 +196,14 @@ func main() {
 	}
 
 	// ===== 旧 API 兼容（已废弃，建议迁移到 /api/v1）=====
-	// 这些路由将在未来版本中移除
+	// 登录/注册（无需认证，供前端 /api 前缀使用）
+	legacyAuth := r.Group("/api")
+	legacyAuth.Use(middleware.RateLimitMiddleware())
+	{
+		legacyAuth.POST("/auth/login", handlers.Login)
+		legacyAuth.POST("/auth/register", handlers.Register)
+	}
+	// 其余旧 API（需要认证）
 	legacy := r.Group("/api")
 	legacy.Use(middleware.AuthMiddleware())
 	{
@@ -190,7 +235,11 @@ func main() {
 
 		legacy.GET("/resources", handlers.ListResources)
 		legacy.POST("/resources", handlers.UploadResource)
+		legacy.POST("/resources/transcribe", handlers.UploadResourceAndTranscribe)
 		legacy.DELETE("/resources/:id", handlers.DeleteResourceHandler)
+
+		// 语音转文本（独立端点）
+		legacy.POST("/speech-to-text", handlers.SpeechToTextOnly)
 
 		legacy.GET("/notebooks", handlers.ListNotebooks)
 		legacy.GET("/notebooks/:id", handlers.GetNotebook)
@@ -202,6 +251,26 @@ func main() {
 		legacy.GET("/stats", handlers.GetStats)
 		legacy.GET("/export", handlers.ExportNotes)
 		legacy.POST("/import", handlers.ImportNotes)
+
+		// AI 洞察与总结
+		legacy.POST("/insights", handlers.GetInsight)
+		legacy.POST("/summarize", handlers.SummarizeNote)
+		legacy.POST("/summarize/batch", handlers.BatchSummarize)
+
+		// 位置管理
+		legacy.PUT("/memos/:id/location", handlers.UpdateNoteLocation)
+		legacy.POST("/memos/:id/detect-location", handlers.DetectNoteLocation)
+		legacy.POST("/memos/:id/detect-and-save", handlers.SaveDetectedLocation)
+		legacy.GET("/notes/by-location", handlers.GetNotesByLocation)
+		legacy.GET("/locations/stats", handlers.GetLocationsStats)
+		legacy.POST("/locations/batch-detect", handlers.BatchDetectLocations)
+
+		// 股票分析
+		legacy.GET("/stocks/search", handlers.SearchStocks)
+		legacy.GET("/stocks/hot", handlers.GetHotStocks)
+		legacy.GET("/stocks/:code", handlers.GetStockInfo)
+		legacy.GET("/stocks/:code/history", handlers.GetStockHistory)
+		legacy.POST("/stocks/analyze", handlers.AnalyzeStock)
 
 		admin := legacy.Group("/users")
 		admin.Use(middleware.AdminOnly())
@@ -274,7 +343,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("正在关闭服务器...")
-	ctx, cancel := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("服务器强制关闭:", err)

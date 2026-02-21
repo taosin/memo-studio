@@ -163,6 +163,17 @@ func runMigrations() error {
 		ver = 8
 	}
 
+	// v9：笔记位置（location）字段
+	if ver < 9 {
+		if err := ensureLocationV9(ctx, conn); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, `PRAGMA user_version = 9;`); err != nil {
+			return err
+		}
+		ver = 9
+	}
+
 	return nil
 }
 
@@ -194,6 +205,38 @@ func ensureNotebooksV8(ctx context.Context, conn *sql.Conn) error {
 	}
 	_, _ = conn.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_notebooks_user_id ON notebooks(user_id);`)
 	_, _ = conn.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_note_notebooks_notebook_id ON note_notebooks(notebook_id);`)
+	return nil
+}
+
+// v9：笔记位置字段
+func ensureLocationV9(ctx context.Context, conn *sql.Conn) error {
+	// location 字段：存储地点名称
+	if ok, err := columnExists(ctx, conn, "notes", "location"); err != nil {
+		return err
+	} else if !ok {
+		if _, err := conn.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN location TEXT;`); err != nil {
+			return err
+		}
+	}
+
+	// latitude 字段：纬度
+	if ok, err := columnExists(ctx, conn, "notes", "latitude"); err != nil {
+		return err
+	} else if !ok {
+		if _, err := conn.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN latitude REAL;`); err != nil {
+			return err
+		}
+	}
+
+	// longitude 字段：经度
+	if ok, err := columnExists(ctx, conn, "notes", "longitude"); err != nil {
+		return err
+	} else if !ok {
+		if _, err := conn.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN longitude REAL;`); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

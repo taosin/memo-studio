@@ -98,7 +98,18 @@ docker run -d \
 直接使用仓库根目录的 `docker-compose.yml`：
 
 ```bash
+# 生成强 JWT Secret（必须！）
+export MEMO_JWT_SECRET=$(openssl rand -base64 32)
+
+# 启动
 docker compose up -d --build
+```
+
+或者创建 `.env` 文件：
+```bash
+# .env 文件
+MEMO_JWT_SECRET=your-strong-secret-here
+MEMO_ADMIN_PASSWORD=your-admin-password
 ```
 
 ### 3) 首次管理员策略（重要）
@@ -115,7 +126,24 @@ docker compose up -d --build
 - **`MEMO_CORS_ORIGINS`**：CORS 白名单（逗号分隔；不填默认放开）
 - **`MEMO_JWT_SECRET`**：JWT 密钥（生产必须设置）
 
-### 5) 多架构镜像（NAS 兼容）
+### 5) AI 功能配置（可选）
+
+配置 OpenAI API Key 启用 AI 功能：
+
+| 环境变量 | 说明 | 默认值 |
+|---------|------|--------|
+| `OPENAI_API_KEY` | OpenAI API Key | 未设置 |
+| `OPENAI_BASE_URL` | API 地址 | `https://api.openai.com/v1` |
+| `WHISPER_MODEL` | 语音转文本模型 | `whisper-1` |
+| `INSIGHT_MODEL` | 洞察分析模型 | `gpt-4` |
+
+启用后功能：
+- 🎤 **语音转文本**：上传音频自动转文字
+- 🧠 **AI 洞察**：分析笔记关键词、分类、情感
+- ✨ **AI 总结**：自动提取要点、生成任务建议
+- 📈 **股票分析**：实时行情、技术分析、投资建议
+
+### 6) 多架构镜像（NAS 兼容）
 
 建议发布 `linux/amd64` 与 `linux/arm64` 两种架构镜像（群晖/威联通/树莓派常用）。
 后续可以用 GitHub Actions + buildx 自动构建并推送到 Docker Hub/GHCR。
@@ -259,6 +287,12 @@ memo-studio/
 - ✅ 明暗主题切换
 - ✅ 响应式设计（支持 H5 和 Web）
 - ✅ 热力图显示
+- ✅ 图片上传与管理（支持粘贴/拖拽）
+- ✅ 🎤 语音输入（浏览器语音识别 + 录音）
+- ✅ 🧠 AI 洞察分析（关键词、分类、情感）
+- ✅ ✨ AI 笔记总结（要点提取、任务建议）
+- ✅ 📈 股票分析（实时行情、技术分析）
+- ✅ 📍 位置识别（自动检测笔记中的地点）
 
 ## API 接口
 
@@ -308,6 +342,29 @@ memo-studio/
 - `POST /api/tags/merge` - 合并标签
   - 请求体: `{ "sourceId": number, "targetId": number }`
   - 返回: `{ "success": true, "message": "标签合并成功" }`
+
+#### AI 洞察与总结（需要认证）
+
+- `POST /api/insights` - 获取笔记洞察
+  - 请求体: `{ "notes": ["string"], "time_range": "7d|30d|90d|all" }`
+  - 返回: `{ "summary": "string", "keywords": ["string"], "categories": ["string"], "sentiment": "positive|neutral|negative", "trends": ["string"], "tips": ["string"] }`
+
+- `POST /api/summarize` - 总结单条笔记
+  - 请求体: `{ "content": "string" }`
+  - 返回: `{ "summary": "string", "highlights": ["string"], "action_items": ["string"] }`
+
+- `POST /api/summarize/batch` - 批量总结
+  - 请求体: `{ "notes": ["string"], "limit": number }`
+  - 返回: `{ "total": number, "limited": number, "results": [...] }`
+
+- `POST /api/speech-to-text` - 语音转文本
+  - 请求体: multipart/form-data (file 字段)
+  - 可选字段: `language`, `prompt`, `temperature`
+  - 返回: `{ "text": "string", "duration": number, "language": "string", "configured": boolean }`
+
+- `POST /api/resources/transcribe` - 上传并转录音频
+  - 请求体: multipart/form-data (file 字段)
+  - 返回: `{ "resource": {...}, "transcribe": { "text": "string", "duration": number, "language": "string" } }`
 
 ## 数据库
 
