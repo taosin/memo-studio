@@ -26,8 +26,13 @@
       try {
         localStorage.setItem('token', res.token);
         localStorage.setItem('user', JSON.stringify(res.user || {}));
+        
+        // Check if there's a redirect path
+        const redirectPath = localStorage.getItem('redirectAfterLogin');
+        localStorage.removeItem('redirectAfterLogin');
+        
+        await goto(redirectPath || '/');
       } catch {}
-      await goto('/');
     } catch (e) {
       error = e?.message || '登录失败';
     } finally {

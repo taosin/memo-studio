@@ -2,6 +2,7 @@
   import { api } from "$lib/api.js";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
+  import { requireAuth } from '$lib/stores.js';
 
   let notebooks = [];
   let selectedNotebook = null;
@@ -147,7 +148,10 @@
     }
   }
 
-  onMount(load);
+  onMount(() => {
+    if (!requireAuth('/notebooks')) return;
+    load();
+  });
 </script>
 
 <svelte:head>

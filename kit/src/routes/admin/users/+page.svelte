@@ -2,6 +2,7 @@
   import { api } from "$lib/api.js";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
+  import { requireAuth } from '$lib/stores.js';
 
   let users = [];
   let loading = false;
@@ -98,7 +99,10 @@
     }
   }
 
-  onMount(load);
+  onMount(() => {
+    if (!requireAuth('/admin/users')) return;
+    load();
+  });
 </script>
 
 <div class="wrap">

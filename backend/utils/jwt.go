@@ -26,9 +26,9 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// GenerateToken 生成 JWT token (默认24小时有效期)
+// GenerateToken 生成 JWT token (默认7天有效期)
 func GenerateToken(userID int, username string, isAdmin bool) (string, error) {
-	return GenerateTokenWithExpiry(userID, username, isAdmin, 24*time.Hour)
+	return GenerateTokenWithExpiry(userID, username, isAdmin, 7*24*time.Hour)
 }
 
 // GenerateTokenWithExpiry 生成带自定义有效期的 JWT token
@@ -71,5 +71,5 @@ func RefreshToken(tokenString string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return GenerateTokenWithExpiry(claims.UserID, claims.Username, claims.IsAdmin, 24*time.Hour)
+	return GenerateTokenWithExpiry(claims.UserID, claims.Username, claims.IsAdmin, 7*24*time.Hour)
 }

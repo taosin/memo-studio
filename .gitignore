@@ -50,3 +50,4 @@ frontend.log
 Thumbs.db
 .DS_Store
 docs/
+.qoder/
