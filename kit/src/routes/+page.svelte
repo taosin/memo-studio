@@ -2,9 +2,15 @@
   import { onDestroy, onMount } from 'svelte';
   import { api } from '$lib/api.js';
   import { buildHeatmap, heatColor } from '$lib/heatmap.js';
-  import { renderMiniMarkdown } from '$lib/miniMarkdown.js';
-  import { notesStore, tagsStore } from '$lib/stores.js';
+  import { notesStore, tagsStore, showToast } from '$lib/stores.js';
+  import { keyboardManager } from '$lib/keyboardManager.js';
   import { goto } from '$app/navigation';
+  
+  // 导入新组件
+  import Toast from '$lib/components/Toast.svelte';
+  import LoadingState from '$lib/components/LoadingState.svelte';
+  import KeyboardHelp from '$lib/components/KeyboardHelp.svelte';
+  import SearchBar from '$lib/components/SearchBar.svelte';
 
   let input = '';
   let baseNotes = [];
@@ -15,7 +21,8 @@
   let searchQ = '';
   let loading = false;
   let error = '';
-  let toast = '';
+  let showKeyboardHelp = false;
+  let searchBarEl = null;
 
   let heat = { cells: [], max: 0 };
 
@@ -26,6 +33,7 @@
   let editOpen = false;
   let editId = null;
   let editText = '';
+  let editLoading = false;
   let debounceTimer;
   let draftTimer;
 
@@ -36,14 +44,6 @@
 
   function stripHtml(s) {
     return String(s || '').replace(/<[^>]*>/g, '').trim();
-  }
-
-  function setToast(msg) {
-    toast = msg;
-    if (!msg) return;
-    setTimeout(() => {
-      if (toast === msg) toast = '';
-    }, 1800);
   }
 
   async function reload() {
@@ -69,11 +69,12 @@
     if (!text) return;
     loading = true;
     error = '';
+    const tempId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     try {
       const tgs = extractTags(text);
       // 乐观更新：先塞一条到顶部，提升体感
       const optimistic = {
-        id: `tmp_${Date.now()}`,
+        id: tempId,
         content: text,
         created_at: new Date().toISOString(),
         tags: tgs.map((name) => ({ id: `tmp_${name}`, name, color: 'rgba(34,197,94,0.6)' }))
@@ -83,10 +84,14 @@
 
       await api.createNote({ content: text, tags: tgs });
       input = '';
-      setToast('已保存');
+      showToast('✅ 已保存', 'success');
       await reload();
     } catch (e) {
+      // 回滚乐观更新
+      notes = notes.filter(n => n.id !== tempId);
+      heat = buildHeatmap(notes, 98);
       error = e?.message || '保存失败';
+      showToast('❌ 保存失败: ' + error, 'error');
     } finally {
       loading = false;
     }
@@ -126,21 +131,21 @@
     if (!file) return null;
     // 检查是否为图片
     if (!file.type.startsWith('image/')) {
-      setToast('仅支持图片文件');
+      showToast('❌ 仅支持图片文件', 'error');
       return null;
     }
     // 检查大小（5MB）
     if (file.size > 5 * 1024 * 1024) {
-      setToast('图片大小不能超过 5MB');
+      showToast('❌ 图片大小不能超过 5MB', 'error');
       return null;
     }
     uploadLoading = true;
     try {
       const res = await api.uploadResource(file);
-      // 返回 Markdown 图片链接
-      return `![${file.name}](/uploads/${res.path})`;
+      // 返回 Markdown 图片链接 - 使用后端返回的 url 字段
+      return `![${file.name}](${res.url || '/uploads/' + res.storage_path})`;
     } catch (e) {
-      setToast(e?.message || '图片上传失败');
+      showToast(e?.message || '图片上传失败', 'error');
       return null;
     } finally {
       uploadLoading = false;
@@ -157,7 +162,7 @@
         const md = await uploadImage(file);
         if (md) {
           input = (input || '') + '\n' + md;
-          setToast('图片已插入');
+          showToast('📷 图片已插入', 'success');
         }
         break;
       }
@@ -177,7 +182,7 @@
         }
       }
     }
-    if (input) setToast('图片已插入');
+    if (input) showToast('📷 图片已插入', 'success');
   }
 
   function handleDragOver(ev) {
@@ -198,7 +203,7 @@
         reviewText = stripHtml(r[0].content || '').slice(0, 1200);
         reviewOpen = true;
       } else {
-        setToast('没有可回顾的笔记');
+        showToast('ℹ️ 没有可回顾的笔记', 'info');
       }
     } catch (e) {
       error = e?.message || '回顾失败';
@@ -220,22 +225,23 @@
     const text = String(editText || '').trim();
     if (!editId) return;
     if (!text) {
-      setToast('内容不能为空');
+      showToast('⚠️ 内容不能为空', 'warning');
       return;
     }
-    loading = true;
+    editLoading = true;
     error = '';
     try {
       const tgs = extractTags(text);
       await api.updateNote(editId, { content: text, tags: tgs });
-      setToast('已更新');
+      showToast('✅ 已更新', 'success');
       editOpen = false;
       editId = null;
       await reload();
     } catch (e) {
       error = e?.message || '更新失败';
+      showToast('❌ 更新失败: ' + error, 'error');
     } finally {
-      loading = false;
+      editLoading = false;
     }
   }
 
@@ -245,7 +251,7 @@
     error = '';
     try {
       await api.deleteNote(noteId);
-      setToast('已删除');
+      showToast('✅ 已删除', 'success');
       await reload();
     } catch (e) {
       error = e?.message || '删除失败';
@@ -263,6 +269,7 @@
   onDestroy(() => {
     clearTimeout(debounceTimer);
     clearTimeout(draftTimer);
+    // 注意：键盘事件监听由 onMount 的返回函数清理
   });
 
   onMount(async () => {
@@ -290,6 +297,43 @@
     inputEl?.focus();
     // 移动端默认收起侧边栏
     if (typeof window !== 'undefined' && window.innerWidth < 900) showSidebar = false;
+
+    // 注册键盘快捷键
+    keyboardManager.register('ctrl+k', () => {
+      searchBarEl?.focus();
+    });
+
+    keyboardManager.register('ctrl+enter', () => {
+      submit();
+    });
+
+    keyboardManager.register('escape', () => {
+      if (editOpen) {
+        editOpen = false;
+      } else if (reviewOpen) {
+        reviewOpen = false;
+      }
+    });
+
+    keyboardManager.register('?', () => {
+      showKeyboardHelp = true;
+    });
+
+    keyboardManager.register('r', () => {
+      reload();
+    });
+
+    keyboardManager.register('b', () => {
+      showSidebar = !showSidebar;
+    });
+
+    // 监听键盘事件
+    const handleKeydown = (e) => keyboardManager.handle(e);
+    document.addEventListener('keydown', handleKeydown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeydown);
+    };
   });
 </script>
 
@@ -369,34 +413,41 @@
         on:drop={handleDrop}
         on:dragover={handleDragOver}
       ></textarea>
-      <div class="preview">
-        <div class="previewTitle">即时预览（极简 Markdown）</div>
-        <div class="previewBody">{@html renderMiniMarkdown(input)}</div>
-      </div>
-      <div class="actions">
+      <div class="composerFooter">
         <div class="leftHint">
           {#if uploadLoading}
             <span class="uploading">图片上传中…</span>
           {:else}
-            Ctrl/Cmd + Enter 保存，可粘贴/拖拽图片
+            <span class="hintText">Ctrl + Enter 保存</span>
           {/if}
         </div>
-        <div class="btns">
-          <button class="btn ghost" on:click={randomReview} disabled={loading || uploadLoading}>随机回顾</button>
-          <button class="btn" on:click={submit} disabled={loading || uploadLoading}>保存</button>
+        <div class="rightActions">
+          <button class="iconBtn" on:click={randomReview} disabled={loading || uploadLoading} title="随机回顾">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+              <path d="M16 16h5v5"/>
+            </svg>
+          </button>
+          <button class="submitBtn" on:click={submit} disabled={loading || uploadLoading}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
         </div>
       </div>
     </div>
 
     <div class="toolbar">
-      <input
-        class="search"
+      <SearchBar
         bind:value={searchQ}
-        placeholder="全文搜索（FTS5）… 输入即搜 / Enter 立即搜"
+        bind:inputElement={searchBarEl}
         on:input={scheduleSearch}
-        on:keydown={(e) => e.key === 'Enter' && doSearch()}
+        on:search={doSearch}
+        on:clear={clearSearch}
       />
-      <button class="btn ghost" on:click={clearSearch} disabled={loading}>清空</button>
       <button class="btn ghost" on:click={doSearch} disabled={loading}>搜索</button>
       <button class="btn ghost" on:click={reload} disabled={loading}>刷新</button>
     </div>
@@ -404,15 +455,9 @@
     {#if error}
       <div class="error" role="alert">{error}</div>
     {/if}
-    {#if toast}
-      <div class="toast" role="status">{toast}</div>
-    {/if}
 
     {#if loading && baseNotes.length === 0}
-      <div class="loadingState">
-        <div class="loadingDots"><span></span><span></span><span></span></div>
-        <p class="loadingText">加载中…</p>
-      </div>
+      <LoadingState type="dots" text="加载中…" />
     {:else if loading && baseNotes.length > 0}
       <div class="list listLoading">
         {#each filtered as n (n.id)}
@@ -534,12 +579,29 @@
         }}
       ></textarea>
       <div class="dialogActions">
-        <button class="btn ghost" on:click={() => (editOpen = false)} disabled={loading}>取消</button>
-        <button class="btn" on:click={saveEdit} disabled={loading}>保存修改</button>
+        <button class="btn ghost" on:click={() => (editOpen = false)} disabled={editLoading}>取消</button>
+        <button class="btn" on:click={saveEdit} disabled={editLoading}>
+          {editLoading ? '保存中...' : '保存修改'}
+        </button>
       </div>
     </div>
   </div>
 {/if}
+
+<!-- Toast 通知 -->
+<Toast />
+
+<!-- 快捷键帮助 -->
+{#if showKeyboardHelp}
+  <KeyboardHelp on:close={() => showKeyboardHelp = false} />
+{/if}
+
+<!-- 快捷键提示 -->
+<div class="keyboardHint">
+  <span class="hintText">按</span>
+  <kbd class="hintKey">?</kbd>
+  <span class="hintText">查看快捷键</span>
+</div>
 
 <style>
   .grid {
@@ -669,7 +731,7 @@
   .composer {
     border: 1px solid var(--border);
     background: var(--panel);
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 16px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
@@ -677,82 +739,91 @@
     border-color: rgba(34, 197, 94, 0.35);
     box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.08);
   }
-  .preview {
-    margin-top: 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: rgba(15, 23, 42, 0.03);
-    padding: 10px 12px;
-  }
-  :global(:root[data-theme="light"]) .preview {
-    background: rgba(15, 23, 42, 0.04);
-  }
-  .previewTitle {
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 6px;
-  }
-  .previewBody :global(p) {
-    margin: 0 0 8px 0;
-    line-height: 1.7;
-  }
-  .previewBody :global(ul) {
-    margin: 0 0 8px 18px;
-  }
-  .previewBody :global(code) {
-    padding: 1px 6px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: rgba(15, 23, 42, 0.06);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-      "Courier New", monospace;
-    font-size: 0.95em;
-  }
-  .previewBody :global(a) {
-    text-decoration: underline;
-  }
   .input {
     width: 100%;
-    resize: vertical;
-    min-height: 90px;
-    border-radius: 10px;
-    border: 1px solid var(--border-2);
-    background: rgba(15, 23, 42, 0.06);
-    color: inherit;
-    padding: 12px 14px;
+    resize: none;
+    min-height: 80px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    padding: 0;
     box-sizing: border-box;
     outline: none;
     font-size: 15px;
-    line-height: 1.6;
-    transition: border-color 0.2s ease;
-  }
-  :global(:root[data-theme="light"]) .input {
-    background: rgba(15, 23, 42, 0.04);
-  }
-  .input:focus {
-    border-color: rgba(34, 197, 94, 0.55);
+    line-height: 1.7;
+    font-family: inherit;
   }
   .input::placeholder {
     color: var(--muted);
   }
-  .actions {
-    margin-top: 10px;
+  .composerFooter {
+    margin-top: 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
   }
   .leftHint {
     font-size: 12px;
     color: var(--muted);
   }
+  .hintText {
+    opacity: 0.7;
+  }
   .uploading {
     color: var(--accent);
-    font-weight: 600;
+    font-weight: 500;
   }
-  .btns {
+  .rightActions {
     display: flex;
+    align-items: center;
     gap: 8px;
+  }
+  .iconBtn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .iconBtn:hover:not(:disabled) {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text);
+  }
+  .iconBtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .submitBtn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .submitBtn:hover:not(:disabled) {
+    transform: scale(1.05);
+  }
+  .submitBtn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+  .submitBtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
   .btn {
     border-radius: 10px;
@@ -788,24 +859,6 @@
     align-items: center;
     flex-wrap: wrap;
   }
-  .search {
-    flex: 1;
-    min-width: 120px;
-    border-radius: 10px;
-    border: 1px solid var(--border-2);
-    background: rgba(15, 23, 42, 0.06);
-    color: inherit;
-    padding: 10px 12px;
-    outline: none;
-    font-size: 14px;
-    transition: border-color 0.2s ease;
-  }
-  :global(:root[data-theme="light"]) .search {
-    background: rgba(15, 23, 42, 0.04);
-  }
-  .search:focus {
-    border-color: rgba(34, 197, 94, 0.55);
-  }
 
   .list {
     display: flex;
@@ -833,38 +886,6 @@
   @keyframes loadingBar {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
-  }
-  .loadingState {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 24px;
-    gap: 16px;
-  }
-  .loadingDots {
-    display: flex;
-    gap: 8px;
-  }
-  .loadingDots span {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--accent);
-    opacity: 0.6;
-    animation: loadingDot 1.4s ease-in-out infinite both;
-  }
-  .loadingDots span:nth-child(1) { animation-delay: 0s; }
-  .loadingDots span:nth-child(2) { animation-delay: 0.2s; }
-  .loadingDots span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes loadingDot {
-    0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-    40% { transform: scale(1.2); opacity: 1; }
-  }
-  .loadingText {
-    margin: 0;
-    font-size: 14px;
-    color: var(--muted);
   }
   .emptyState {
     text-align: center;
@@ -981,26 +1002,6 @@
     border-radius: 12px;
     padding: 10px 12px;
   }
-  .toast {
-    position: sticky;
-    top: 58px;
-    z-index: 5;
-    border: 1px solid rgba(34, 197, 94, 0.35);
-    background: var(--accent-soft);
-    border-radius: 12px;
-    padding: 10px 14px;
-    animation: toastIn 0.25s ease;
-  }
-  @keyframes toastIn {
-    from {
-      opacity: 0;
-      transform: translateY(-8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
 
   .overlay {
     position: fixed;
@@ -1057,6 +1058,48 @@
   }
   .dialogInput:focus {
     border-color: rgba(34, 197, 94, 0.55);
+  }
+
+  .keyboardHint {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+  }
+
+  .keyboardHint:hover {
+    opacity: 1;
+  }
+
+  .hintText {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .hintKey {
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.08);
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 768px) {
+    .keyboardHint {
+      display: none;
+    }
   }
 </style>
 

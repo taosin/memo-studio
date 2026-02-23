@@ -46,7 +46,9 @@
 
   onMount(() => {
     applyTheme(current);
-    // 生产环境注册 Service Worker
+    // Service Worker 已禁用
+    // 如需开启，取消下方注释
+    /*
     if (
       typeof navigator !== "undefined" &&
       "serviceWorker" in navigator &&
@@ -54,6 +56,7 @@
     ) {
       navigator.serviceWorker.register("/service-worker.js").catch(() => {});
     }
+    */
 
     syncAuth();
     window.addEventListener("storage", syncAuth);
@@ -75,36 +78,52 @@
       <img src="/favicon.svg" alt="" class="brandIcon" width="24" height="24" />
       Memo Studio
     </a>
-    <div class="hint">极简记录 · Ctrl+Enter 保存</div>
     <div class="spacer"></div>
     {#if authed}
       <nav class="navWrap">
         <a class="nav" href="/notebooks" on:click={closeNav}>笔记本</a>
+        <a class="nav" href="/tags" on:click={closeNav}>标签</a>
         <a class="nav" href="/stats" on:click={closeNav}>统计</a>
-        <a class="nav" href="/insights" on:click={closeNav}>🧠 洞察</a>
-        <a class="nav" href="/tags" on:click={closeNav}>标签库</a>
-        <a class="nav navMore" href="/locations" on:click={closeNav}>📍 位置</a>
-        <a class="nav navMore" href="/resources" on:click={closeNav}>资源库</a>
-        <a class="nav navMore" href="/stocks" on:click={closeNav}>📈 股票</a>
-        <a class="nav navMore" href="/voice" on:click={closeNav}>🎤 语音</a>
-        <a class="nav navMore" href="/export" on:click={closeNav}>导出</a>
-        <a class="nav navMore" href="/import" on:click={closeNav}>导入</a>
-        <a class="nav navMore" href="/settings" on:click={closeNav}>设置</a>
-        <a class="nav navMore" href="/help" on:click={closeNav}>帮助</a>
-        <a class="nav navMore" href="/profile" on:click={closeNav}>个人信息</a>
-        {#if isAdmin}
-          <a class="nav navMore" href="/admin/users" on:click={closeNav}>用户管理</a>
-        {/if}
       </nav>
       <div class="navRight">
-        <button class="navBtn" on:click={logout}>登出</button>
+        <a class="nav" href="/profile" on:click={closeNav} title="个人信息">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </a>
         <button
           class="iconBtn menuBtn"
           on:click={() => (navOpen = !navOpen)}
           aria-label="更多菜单"
           aria-expanded={navOpen}
+          title="更多"
         >
-          <span class="menuIcon" class:open={navOpen}>☰</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="19" cy="12" r="1"></circle>
+            <circle cx="5" cy="12" r="1"></circle>
+          </svg>
         </button>
       </div>
       {#if navOpen}
@@ -113,25 +132,38 @@
           role="button"
           tabindex="-1"
           on:click={closeNav}
-          on:keydown={(e) => e.key === 'Escape' && closeNav()}
+          on:keydown={(e) => e.key === "Escape" && closeNav()}
         ></div>
         <div class="navDropdown" role="menu">
-          <a href="/notebooks" on:click={closeNav}>笔记本</a>
-          <a href="/stats" on:click={closeNav}>统计</a>
-          <a href="/insights" on:click={closeNav}>🧠 洞察</a>
-          <a href="/tags" on:click={closeNav}>标签库</a>
-          <a href="/locations" on:click={closeNav}>📍 位置</a>
-          <a href="/resources" on:click={closeNav}>资源库</a>
-          <a href="/stocks" on:click={closeNav}>📈 股票</a>
-          <a href="/voice" on:click={closeNav}>🎤 语音</a>
-          <a href="/export" on:click={closeNav}>导出</a>
-          <a href="/import" on:click={closeNav}>导入</a>
-          <a href="/settings" on:click={closeNav}>设置</a>
-          <a href="/help" on:click={closeNav}>帮助</a>
-          <a href="/profile" on:click={closeNav}>个人信息</a>
-          {#if isAdmin}
-            <a href="/admin/users" on:click={closeNav}>用户管理</a>
-          {/if}
+          <div class="navSection">
+            <span class="navSectionTitle">功能</span>
+            <a href="/insights" on:click={closeNav}>🧠 洞察</a>
+            <a href="/locations" on:click={closeNav}>📍 位置</a>
+            <a href="/resources" on:click={closeNav}>🖼️ 资源</a>
+            <a href="/stocks" on:click={closeNav}>📈 股票</a>
+            <a href="/voice" on:click={closeNav}>🎤 语音</a>
+          </div>
+          <div class="navSection">
+            <span class="navSectionTitle">数据</span>
+            <a href="/export" on:click={closeNav}>导出</a>
+            <a href="/import" on:click={closeNav}>导入</a>
+          </div>
+          <div class="navSection">
+            <span class="navSectionTitle">设置</span>
+            <a href="/settings" on:click={closeNav}>应用设置</a>
+            <a href="/help" on:click={closeNav}>帮助</a>
+            {#if isAdmin}
+              <a href="/admin/users" on:click={closeNav}>用户管理</a>
+            {/if}
+            <a
+              href="#"
+              on:click|preventDefault={() => {
+                logout();
+                closeNav();
+              }}
+              class="logout">登出</a
+            >
+          </div>
         </div>
       {/if}
     {:else}
@@ -264,11 +296,6 @@
   .navDropdown {
     display: none;
   }
-  @media (max-width: 1024px) {
-    .navMore {
-      display: none;
-    }
-  }
   @media (max-width: 768px) {
     .hint {
       display: none;
@@ -280,13 +307,6 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-    }
-    .menuIcon {
-      font-size: 18px;
-      transition: transform 0.2s ease;
-    }
-    .menuIcon.open {
-      transform: rotate(90deg);
     }
     .navOverlay {
       display: block;
@@ -302,7 +322,7 @@
       position: fixed;
       top: 56px;
       right: 16px;
-      min-width: 180px;
+      min-width: 200px;
       max-width: 90vw;
       max-height: 70vh;
       overflow: auto;
@@ -311,13 +331,30 @@
       border-radius: 12px;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
       z-index: 12;
-      padding: 8px;
-      gap: 2px;
+      padding: 8px 0;
       animation: slideDown 0.2s ease;
     }
+    .navSection {
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .navSection:last-child {
+      border-bottom: none;
+    }
+    .navSectionTitle {
+      display: block;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
     .navDropdown a {
-      padding: 10px 12px;
-      border-radius: 8px;
+      display: block;
+      padding: 8px 12px;
+      margin: 0 8px;
+      border-radius: 6px;
       text-decoration: none;
       color: inherit;
       font-size: 14px;
@@ -326,14 +363,30 @@
     .navDropdown a:hover {
       background: rgba(148, 163, 184, 0.12);
     }
+    .navDropdown a.logout {
+      color: rgba(248, 113, 113, 0.9);
+    }
+    .navDropdown a.logout:hover {
+      background: rgba(248, 113, 113, 0.12);
+    }
   }
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
   @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   .iconBtn {
     border-radius: 10px;
@@ -357,7 +410,9 @@
     border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--panel);
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
   }
   .nav:hover {
     background: rgba(148, 163, 184, 0.1);
@@ -371,7 +426,9 @@
     border: 1px solid var(--border);
     background: var(--panel);
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
   }
   .navBtn:hover {
     background: rgba(148, 163, 184, 0.1);
