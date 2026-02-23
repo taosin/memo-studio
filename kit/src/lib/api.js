@@ -27,6 +27,21 @@ async function jsonFetch(path, options = {}) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    
+    // Handle 401 Unauthorized - clear token and redirect to login
+    if (res.status === 401) {
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } catch {}
+      
+      // Only redirect if we're in browser context and not already on login page
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        const { goto } = await import('$app/navigation');
+        goto('/login');
+      }
+    }
+    
     throw new Error(err.error || `请求失败(${res.status})`);
   }
   return res.json();

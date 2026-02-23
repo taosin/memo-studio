@@ -1,50 +1,24 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import Card from '$lib/components/ui/card/card.svelte';
-  import CardContent from '$lib/components/ui/card/card-content.svelte';
-  import CardFooter from '$lib/components/ui/card/card-footer.svelte';
-  import Badge from '$lib/components/ui/badge/badge.svelte';
-  
+
   export let note;
   const dispatch = createEventDispatcher();
-  
-  // 安全地提取笔记内容的纯文本预览
+
+  let isHovered = false;
+
   function getContentPreview(content) {
-    // 调试：检查 content 的类型
-    if (typeof content !== 'string' && content !== null && content !== undefined) {
-      console.warn('NoteCard - content 不是字符串:', typeof content, content);
-    }
+    if (!content) return '';
     
-    // 处理各种可能的类型
-    let safeContent = '';
-    if (typeof content === 'string') {
-      safeContent = content;
-    } else if (content === null || content === undefined) {
-      safeContent = '';
-    } else {
-      // 如果是对象或其他类型，尝试转换
-      try {
-        if (typeof content === 'object') {
-          // 如果是对象，可能是错误存储的数据，尝试提取文本
-          safeContent = JSON.stringify(content);
-        } else {
-          safeContent = String(content);
-        }
-      } catch (e) {
-        console.error('转换 content 失败:', e);
-        safeContent = '';
-      }
-    }
+    // 统一转换为字符串并去除 HTML 标签
+    const textContent = String(content)
+      .replace(/<[^>]*>/g, '')
+      .trim();
     
-    // 如果是 HTML，提取纯文本；否则直接使用
-    const textContent = safeContent.replace(/<[^>]*>/g, '').trim();
-    // 截取前 150 个字符
-    if (textContent.length > 150) {
-      return textContent.substring(0, 150) + '...';
-    }
-    return textContent || '无内容';
+    return textContent.length > 150 
+      ? textContent.substring(0, 150) + '...' 
+      : textContent;
   }
-  
+
   function handleClick() {
     dispatch('click');
   }
@@ -54,45 +28,105 @@
   }
 
   function handleTagClick(tag, event) {
+    event.stopPropagation();
     dispatch('tagClick', { tag, event });
+  }
+
+  function formatTime(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) return '刚刚';
+    if (diffMinutes < 60) return `${diffMinutes}分钟前`;
+    if (diffHours < 24) return `${diffHours}小时前`;
+    if (diffDays === 1) return '昨天';
+    if (diffDays < 7) return `${diffDays}天前`;
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
   }
 </script>
 
 <div
-  class="cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5"
+  class="cursor-pointer transition-all duration-300 ease-out group"
+  on:mouseenter={() => isHovered = true}
+  on:mouseleave={() => isHovered = false}
   on:click={handleClick}
   on:dblclick={handleDoubleClick}
   role="button"
   tabindex="0"
   on:keydown={(e) => e.key === 'Enter' && handleClick()}
 >
-  <Card class="hover:border-primary">
-    <CardContent class="p-3">
-      <h3 class="text-lg font-semibold mb-2 text-card-foreground">
-        {note.title || '无标题'}
+  <div 
+    class="relative p-5 rounded-2xl transition-all duration-300 {isHovered ? 'bg-card/80 shadow-lg shadow-primary/5 border-primary/20' : 'bg-card shadow-sm border-border/40'}"
+  >
+    <!-- 标题 -->
+    {#if note.title}
+      <h3 class="font-semibold text-foreground mb-3 leading-snug transition-colors group-hover:text-primary">
+        {note.title}
       </h3>
-      <p class="text-muted-foreground text-sm line-clamp-3 mb-3">
+    {/if}
+
+    <!-- 内容预览 -->
+    {#if getContentPreview(note.content)}
+      <p class="text-muted-foreground text-sm leading-relaxed line-clamp-3 mb-4">
         {getContentPreview(note.content)}
       </p>
-    </CardContent>
-    <CardFooter class="flex justify-between items-center pt-0 pb-3 px-3 border-t">
-      <div class="flex flex-wrap gap-1.5">
-        {#each note.tags || [] as tag}
-          <span
-            class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold cursor-pointer hover:bg-accent transition-colors"
-            style="border-color: {tag.color || '#4ECDC4'}; color: {tag.color || '#4ECDC4'}"
-            role="button"
-            tabindex="0"
-            on:click|stopPropagation={(e) => handleTagClick(tag, e)}
-            on:keydown={(e) => e.key === 'Enter' && handleTagClick(tag, e)}
+    {/if}
+
+    <!-- 标签 -->
+    {#if note.tags && note.tags.length > 0}
+      <div class="flex flex-wrap gap-1.5 mb-4">
+        {#each note.tags.slice(0, 5) as tag}
+          <button
+            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-all duration-200 hover:scale-105"
+            style="background-color: {tag.color || '#4ECDC4'}15; color: {tag.color || '#4ECDC4'}"
+            on:click={(e) => handleTagClick(tag, e)}
           >
-            {tag.name}
-          </span>
+            #{tag.name}
+          </button>
         {/each}
+        {#if note.tags.length > 5}
+          <span class="text-xs text-muted-foreground self-center">+{note.tags.length - 5}</span>
+        {/if}
       </div>
-      <span class="text-xs text-muted-foreground">
-        {new Date(note.created_at).toLocaleDateString('zh-CN')}
-      </span>
-    </CardFooter>
-  </Card>
+    {/if}
+
+    <!-- 底部信息 -->
+    <div class="flex items-center justify-between pt-3 border-t border-border/30">
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-muted-foreground/60">
+          {formatTime(note.created_at)}
+        </span>
+      </div>
+      
+      <div class="flex items-center gap-2 text-muted-foreground/40">
+        {#if note.tags && note.tags.length > 0}
+          <div class="flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+            <span class="text-xs">{note.tags.length}</span>
+          </div>
+        {/if}
+        
+        <!-- 悬停时显示的操作提示 -->
+        <span class="text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+          点击查看
+        </span>
+      </div>
+    </div>
+
+    <!-- 悬停时的装饰线条 -->
+    <div 
+      class="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl bg-gradient-to-b from-primary to-primary/50 opacity-0 group-hover:opacity-100 transition-all duration-300"
+    ></div>
+    
+    <!-- 双击编辑提示 -->
+    <div class="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+      双击编辑
+    </div>
+  </div>
 </div>

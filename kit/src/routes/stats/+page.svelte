@@ -2,6 +2,7 @@
   import { api } from "$lib/api.js";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
+  import { requireAuth } from '$lib/stores.js';
 
   let stats = null;
   let loading = false;
@@ -22,7 +23,10 @@
     }
   }
 
-  onMount(load);
+  onMount(() => {
+    if (!requireAuth('/stats')) return;
+    load();
+  });
 </script>
 
 <svelte:head>

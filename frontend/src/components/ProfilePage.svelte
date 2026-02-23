@@ -9,12 +9,13 @@
   import Button from '$lib/components/ui/button/button.svelte';
   import Heatmap from './Heatmap.svelte';
   import TagManager from './TagManager.svelte';
+  import PrivacySettings from './PrivacySettings.svelte';
   import { themeStore } from '../stores/theme.js';
   import { authStore } from '../stores/auth.js';
 
   const dispatch = createEventDispatcher();
 
-  let activeTab = 'detail'; // 'detail', 'settings', 'stats', 'tags'
+  let activeTab = 'detail'; // 'detail', 'settings', 'stats', 'tags', 'privacy'
   let notes = [];
   let tags = [];
   let stats = {
@@ -45,13 +46,11 @@
     stats.totalNotes = notes.length;
     stats.totalTags = tags.length;
     
-    // 计算总字数
     stats.totalWords = notes.reduce((sum, note) => {
       const text = (note.content || '').replace(/<[^>]*>/g, '');
       return sum + text.length;
     }, 0);
 
-    // 计算平均每天笔记数
     if (notes.length > 0) {
       const firstNote = notes[notes.length - 1];
       const daysDiff = Math.ceil(
@@ -78,31 +77,21 @@
   </div>
 
   <!-- 标签页 -->
-  <div class="flex gap-2 mb-4 border-b">
-    <button
-      class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'detail' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-      on:click={() => activeTab = 'detail'}
-    >
-      个人详情
-    </button>
-    <button
-      class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'settings' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-      on:click={() => activeTab = 'settings'}
-    >
-      偏好设置
-    </button>
-    <button
-      class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'stats' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-      on:click={() => activeTab = 'stats'}
-    >
-      记录统计
-    </button>
-    <button
-      class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'tags' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-      on:click={() => activeTab = 'tags'}
-    >
-      标签管理
-    </button>
+  <div class="flex gap-1 mb-4 p-1 bg-card/50 rounded-lg">
+    {#each [
+      { id: 'detail', label: '👤 详情', icon: '' },
+      { id: 'settings', label: '⚙️ 设置', icon: '' },
+      { id: 'stats', label: '📊 统计', icon: '' },
+      { id: 'tags', label: '🏷️ 标签', icon: '' },
+      { id: 'privacy', label: '🔒 隐私', icon: '' }
+    ] as tab}
+      <button
+        class="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all {activeTab === tab.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
+        on:click={() => activeTab = tab.id}
+      >
+        {tab.label}
+      </button>
+    {/each}
   </div>
 
   <!-- 个人详情 -->
@@ -113,7 +102,7 @@
       </CardHeader>
       <CardContent class="p-3 space-y-4">
         <div class="flex items-center gap-4">
-          <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-2xl">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary-light flex items-center justify-center text-2xl shadow-lg">
             👤
           </div>
           <div>
@@ -155,10 +144,6 @@
             {$themeStore === 'light' ? '🌙 暗色' : '☀️ 亮色'}
           </Button>
         </div>
-        <div class="pt-4 border-t">
-          <h4 class="font-medium mb-2">其他设置</h4>
-          <p class="text-sm text-muted-foreground">更多设置功能开发中...</p>
-        </div>
       </CardContent>
     </Card>
   {/if}
@@ -168,27 +153,27 @@
     <div class="space-y-4">
       <!-- 统计卡片 -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
+        <Card class="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
           <CardContent class="p-3 text-center">
-            <div class="text-2xl font-bold">{stats.totalNotes}</div>
+            <div class="text-2xl font-bold text-primary">{stats.totalNotes}</div>
             <div class="text-sm text-muted-foreground mt-1">笔记总数</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card class="bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20">
           <CardContent class="p-3 text-center">
-            <div class="text-2xl font-bold">{stats.totalTags}</div>
+            <div class="text-2xl font-bold text-green-500">{stats.totalTags}</div>
             <div class="text-sm text-muted-foreground mt-1">标签总数</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card class="bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20">
           <CardContent class="p-3 text-center">
-            <div class="text-2xl font-bold">{stats.totalWords.toLocaleString()}</div>
+            <div class="text-2xl font-bold text-orange-500">{stats.totalWords.toLocaleString()}</div>
             <div class="text-sm text-muted-foreground mt-1">总字数</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card class="bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
           <CardContent class="p-3 text-center">
-            <div class="text-2xl font-bold">{stats.avgNotesPerDay}</div>
+            <div class="text-2xl font-bold text-purple-500">{stats.avgNotesPerDay}</div>
             <div class="text-sm text-muted-foreground mt-1">日均笔记</div>
           </CardContent>
         </Card>
@@ -206,6 +191,11 @@
   <!-- 标签管理 -->
   {#if activeTab === 'tags'}
     <TagManager on:updated={loadData} />
+  {/if}
+
+  <!-- 隐私设置 -->
+  {#if activeTab === 'privacy'}
+    <PrivacySettings onLogout={handleLogout} />
   {/if}
 
   <!-- 退出按钮 -->

@@ -2,6 +2,7 @@
   import { api } from "$lib/api.js";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
+  import { requireAuth } from '$lib/stores.js';
 
   let tags = [];
   let loading = false;
@@ -126,7 +127,10 @@
     }
   }
 
-  onMount(load);
+  onMount(() => {
+    if (!requireAuth('/tags')) return;
+    load();
+  });
 </script>
 
 <svelte:head>

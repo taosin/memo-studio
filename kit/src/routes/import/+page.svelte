@@ -82,7 +82,7 @@
       <textarea
         class="textarea"
         bind:value={jsonText}
-        placeholder='[{"title":"标题","content":"内容","tags":["标签1"]}]'
+        placeholder={`[{"title":"标题","content":"内容","tags":["标签1"]}]`}
         rows="12"
       ></textarea>
       <button type="button" class="btn ghost" on:click={pasteSample}>填充示例</button>

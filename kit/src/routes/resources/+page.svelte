@@ -2,6 +2,7 @@
   import { api } from "$lib/api.js";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
+  import { requireAuth } from '$lib/stores.js';
 
   let items = [];
   let total = 0;
@@ -86,7 +87,10 @@
   $: hasPrev = page > 0;
   $: hasNext = page < totalPages - 1;
 
-  onMount(load);
+  onMount(() => {
+    if (!requireAuth('/resources')) return;
+    load();
+  });
 </script>
 
 <svelte:head>

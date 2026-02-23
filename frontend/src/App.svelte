@@ -5,30 +5,33 @@
   import LoginPage from './components/LoginPage.svelte';
   import NoteList from './components/NoteList.svelte';
   import NoteDetail from './components/NoteDetail.svelte';
-  import NoteEditor from './components/NoteEditor.svelte';
+  import FlomoEditor from './components/FlomoEditor.svelte';
   import ProfilePage from './components/ProfilePage.svelte';
   import ThemeToggle from './components/ThemeToggle.svelte';
+  import KeyboardManager from './components/KeyboardManager.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
   import { api } from './utils/api.js';
+  import { exportData } from './utils/exportImport.js';
+  import { saveDraft } from './utils/backup.js';
 
-  let currentView = 'list'; // 'list', 'detail', 'editor', 'profile'
+  let currentView = 'list';
   let selectedNoteId = null;
   let editingNote = null;
-  let listKey = 0; // 用于强制刷新列表
-  let notes = []; // 用于快速编辑
+  let listKey = 0;
+  let showEditor = false;
+  let editorMode = 'create';
+  let viewMode = 'timeline';
+  let sidebarCollapsed = false;
+  let keyboardManager;
 
   $: isAuthenticated = $authStore.isAuthenticated;
 
   function handleAuthSuccess() {
-    // 登录成功后刷新页面或跳转到列表页
     currentView = 'list';
   }
 
   onMount(() => {
-    // 监听登录成功事件
     window.addEventListener('auth-success', handleAuthSuccess);
-    
-    // 检查是否已登录
     if ($authStore.isAuthenticated) {
       verifyToken();
     }
@@ -43,7 +46,6 @@
       const user = await api.getCurrentUser();
       authStore.setUser(user);
     } catch (err) {
-      // Token 无效，清除认证信息
       authStore.logout();
     }
   }
@@ -55,12 +57,14 @@
 
   function handleNewNote() {
     editingNote = null;
-    currentView = 'editor';
+    editorMode = 'create';
+    showEditor = true;
   }
 
   function handleEditNote(note) {
     editingNote = note;
-    currentView = 'editor';
+    editorMode = 'edit';
+    showEditor = true;
   }
 
   function handleBack() {
@@ -79,13 +83,21 @@
   }
 
   function handleSave() {
-    currentView = 'list';
+    showEditor = false;
     editingNote = null;
-    listKey++; // 触发列表刷新
+    listKey++;
+    if (currentView === 'detail') {
+      currentView = 'list';
+      selectedNoteId = null;
+    }
+  }
+
+  function handleEditorCancel() {
+    showEditor = false;
+    editingNote = null;
   }
 
   async function handleQuickEdit(noteId) {
-    // 快速编辑：直接进入编辑模式
     try {
       const note = await api.getNote(noteId);
       handleEditNote(note);
@@ -93,60 +105,223 @@
       console.error('获取笔记失败:', err);
     }
   }
+
+  // 键盘事件处理
+  function handleFocusSearch() {
+    // 触发搜索栏聚焦
+    const searchInput = document.querySelector('.search-bar input');
+    if (searchInput) searchInput.focus();
+  }
+
+  function handleSaveEditor() {
+    // 触发编辑器保存
+    const saveBtn = document.querySelector('.flomo-editor .save-btn');
+    if (saveBtn) saveBtn.click();
+  }
+
+  function handleCloseAll() {
+    if (showEditor) {
+      handleEditorCancel();
+    } else if (currentView !== 'list') {
+      handleBack();
+    }
+  }
+
+  function handleNewNoteKey() {
+    handleNewNote();
+  }
+
+  function handleEdit() {
+    // 编辑当前选中的笔记
+    if (selectedNoteId) {
+      handleQuickEdit(selectedNoteId);
+    }
+  }
+
+  function handleDelete() {
+    // 删除当前笔记
+    if (selectedNoteId && confirm('确定删除此笔记吗？')) {
+      api.deleteNote(selectedNoteId).then(() => {
+        listKey++;
+        handleBack();
+      });
+    }
+  }
+
+  function handleNavigate(e) {
+    // 笔记列表导航
+    const direction = e.detail.direction;
+    const notes = document.querySelectorAll('.note-card, .note-item');
+    if (notes.length === 0) return;
+    
+    const active = document.activeElement;
+    let index = -1;
+    notes.forEach((note, i) => {
+      if (note === active || note.contains(active)) index = i;
+    });
+    
+    if (direction === 'down') {
+      index = Math.min(index + 1, notes.length - 1);
+    } else {
+      index = Math.max(index - 1, 0);
+    }
+    
+    if (notes[index]) {
+      notes[index].focus();
+      if (notes[index].scrollIntoView) {
+        notes[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }
+
+  function handleChangeView(e) {
+    viewMode = e.detail.mode;
+  }
+
+  function handleToggleSidebar() {
+    sidebarCollapsed = !sidebarCollapsed;
+  }
+
+  function handleShowTags() {
+    // 显示标签面板
+    const tagButton = document.querySelector('.tag-tree-toggle');
+    if (tagButton) tagButton.click();
+  }
+
+  function handleFocusTagSearch() {
+    const tagSearch = document.querySelector('.tag-search input');
+    if (tagSearch) tagSearch.focus();
+  }
+
+  function handleImport() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json,.md,.txt';
+    fileInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          if (data.notes && Array.isArray(data.notes)) {
+            for (const note of data.notes) {
+              await api.createNote(note);
+            }
+            listKey++;
+            alert(`成功导入 ${data.notes.length} 条笔记`);
+          }
+        } catch (err) {
+          alert('导入失败: ' + err.message);
+        }
+      }
+    };
+    fileInput.click();
+  }
 </script>
 
 {#if !isAuthenticated}
   <LoginPage />
 {:else}
   <div class="min-h-screen flex flex-col bg-background">
-    <header class="sticky top-0 z-50 w-full border-b bg-card">
-      <div class="container mx-auto px-4">
+    <!-- 键盘管理器 -->
+    <KeyboardManager
+      bind:this={keyboardManager}
+      on:focusSearch={handleFocusSearch}
+      on:saveEditor={handleSaveEditor}
+      on:closeAll={handleCloseAll}
+      on:newNote={handleNewNoteKey}
+      on:edit={handleEdit}
+      on:delete={handleDelete}
+      on:navigate={handleNavigate}
+      on:changeView={handleChangeView}
+      on:toggleSidebar={handleToggleSidebar}
+      on:showTags={handleShowTags}
+      on:focusTagSearch={handleFocusTagSearch}
+      on:import={handleImport}
+    />
+
+    <header class="sticky top-0 z-40 w-full border-b bg-card/80 backdrop-blur-md transition-all duration-300">
+      <div class="container mx-auto px-2 sm:px-4">
         <div class="flex h-14 sm:h-16 items-center justify-between">
           <button
-            class="text-xl sm:text-2xl font-semibold cursor-pointer select-none bg-transparent border-none p-0 text-left"
+            class="text-xl sm:text-2xl font-bold cursor-pointer select-none bg-transparent border-none p-0 text-left flex items-center gap-2 hover:opacity-80 transition-opacity"
             on:click={handleBack}
           >
-            📝 Memo Studio
+            <span class="text-2xl">📝</span>
+            <span class="hidden sm:inline bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
+              Memo Studio
+            </span>
           </button>
           <div class="flex items-center gap-2 sm:gap-4">
-            {#if currentView === 'list'}
-              <Button on:click={handleNewNote} size="sm" class="text-xs sm:text-sm">+ 新建</Button>
-              <Button variant="ghost" size="sm" on:click={handleProfile}>
-                👤
-              </Button>
-            {/if}
+            <Button variant="ghost" size="sm" on:click={handleProfile} class="hover:bg-accent transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </Button>
             <ThemeToggle />
           </div>
         </div>
       </div>
     </header>
 
-    <main class="flex-1 container mx-auto px-4 py-4 max-w-[1400px]">
+    <main class="flex-1 container mx-auto px-4 py-4 max-w-[1400px] pb-24">
       {#if currentView === 'list'}
         <NoteList 
           key={listKey} 
+          {viewMode}
+          {sidebarCollapsed}
           on:noteClick={(e) => handleNoteClick(e.detail)}
           onQuickEdit={handleQuickEdit}
         />
       {:else if currentView === 'detail'}
-        <NoteDetail 
-          noteId={selectedNoteId} 
-          on:back={handleBack}
-          on:edit={(e) => handleEditNote(e.detail)}
-          on:deleted={() => {
-            listKey++;
-            handleBack();
-          }}
-        />
-      {:else if currentView === 'editor'}
-        <NoteEditor 
-          note={editingNote}
-          on:save={handleSave}
-          on:cancel={handleBack}
-        />
+        <div class="animate-fade-in">
+          <NoteDetail 
+            noteId={selectedNoteId} 
+            on:back={handleBack}
+            on:edit={(e) => handleEditNote(e.detail)}
+            on:deleted={() => {
+              listKey++;
+              handleBack();
+            }}
+          />
+        </div>
       {:else if currentView === 'profile'}
-        <ProfilePage on:logout={handleLogout} />
+        <div class="animate-fade-in">
+          <ProfilePage on:logout={handleLogout} />
+        </div>
       {/if}
     </main>
+
+    <!-- Flomo 风格底部编辑器 -->
+    {#if showEditor}
+      <FlomoEditor 
+        note={editingNote}
+        mode={editorMode}
+        on:save={handleSave}
+        on:cancel={handleEditorCancel}
+      />
+    {:else}
+      <!-- 底部浮动按钮 - 移动端优化 -->
+      <div class="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in w-[calc(100%-2rem)] sm:w-auto max-w-sm">
+        <button
+          on:click={handleNewNote}
+          class="w-full sm:w-auto flex items-center justify-center gap-2 px-5 sm:px-6 py-3 sm:py-3 bg-gradient-to-r from-primary to-primary-light text-primary-foreground rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95 transition-all duration-300 group"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="group-hover:rotate-90 transition-transform duration-300">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span class="font-medium">记录灵感</span>
+        </button>
+      </div>
+    {/if}
   </div>
 {/if}
+
+<style>
+  :global(.note-card:focus, .note-item:focus) {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+</style>

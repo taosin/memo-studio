@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" fill="none">
+  <rect x="2" y="4" width="32" height="32" rx="6" fill="#22c55e"/>
+  <path d="M8 14h20v2H8v-2zm0 5h16v1.5H8V19zm0 3.5h14v1.5H8v-1.5z" fill="white"/>
+  <path d="M10 26l2.5-5 2 3.5L17 24l4 2.5H10z" fill="white" opacity="0.9"/>
+  <text x="44" y="28" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="currentColor">Memo Studio</text>
+</svg>

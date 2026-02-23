@@ -2,6 +2,7 @@
   import { api } from '$lib/api.js';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
+  import { requireAuth } from '$lib/stores.js';
 
   let me = null;
   let username = '';
@@ -74,7 +75,10 @@
     await goto('/login');
   }
 
-  onMount(load);
+  onMount(() => {
+    if (!requireAuth('/profile')) return;
+    load();
+  });
 </script>
 
 <div class="wrap">

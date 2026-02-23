@@ -2,7 +2,6 @@ package models
 
 import (
 	"database/sql"
-	"log"
 	"memo-studio/backend/database"
 	"strconv"
 	"strings"
@@ -19,8 +18,12 @@ type Note struct {
 	Tags        []Tag      `json:"tags"`
 	Resources   []Resource `json:"resources"`
 	NotebookIDs []int      `json:"notebook_ids,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	// 位置信息
+	Location   string  `json:"location,omitempty"`
+	Latitude   float64 `json:"latitude,omitempty"`
+	Longitude float64 `json:"longitude,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Tag struct {
@@ -212,10 +215,12 @@ func GetNote(id int) (*Note, error) {
 	var userID sql.NullInt64
 	var pinnedInt int
 	var contentType string
+	var location sql.NullString
+	var latitude, longitude sql.NullFloat64
 	err := database.DB.QueryRow(
-		"SELECT id, user_id, title, content, pinned, content_type, created_at, updated_at FROM notes WHERE id = ?",
+		"SELECT id, user_id, title, content, pinned, content_type, location, latitude, longitude, created_at, updated_at FROM notes WHERE id = ?",
 		id,
-	).Scan(&note.ID, &userID, &note.Title, &note.Content, &pinnedInt, &contentType, &note.CreatedAt, &note.UpdatedAt)
+	).Scan(&note.ID, &userID, &note.Title, &note.Content, &pinnedInt, &contentType, &location, &latitude, &longitude, &note.CreatedAt, &note.UpdatedAt)
 
 	if err != nil {
 		return nil, err
@@ -228,13 +233,16 @@ func GetNote(id int) (*Note, error) {
 	note.Pinned = pinnedInt != 0
 	note.ContentType = contentType
 
+	// 位置信息
+	if location.Valid {
+		note.Location = location.String
+	}
+	note.Latitude = latitude.Float64
+	note.Longitude = longitude.Float64
+
 	// 清理 content 字段（只清理 [object Object] 字符串）
 	note.Content = cleanContent(note.Content)
 	note.Title = cleanContent(note.Title)
-	
-	// 调试日志
-	log.Printf("[GetNote] 读取 - ID: %d, Title: %q (len: %d), Content: %q (len: %d)", 
-		note.ID, note.Title, len(note.Title), note.Content, len(note.Content))
 
 	// 获取标签
 	tags, err := GetTagsByNoteID(id)
@@ -260,7 +268,7 @@ func GetNote(id int) (*Note, error) {
 // GetAllNotes 获取所有笔记
 func GetAllNotes() ([]Note, error) {
 	rows, err := database.DB.Query(
-		"SELECT id, user_id, title, content, pinned, content_type, created_at, updated_at FROM notes ORDER BY created_at DESC",
+		"SELECT id, user_id, title, content, pinned, content_type, location, latitude, longitude, created_at, updated_at FROM notes ORDER BY created_at DESC",
 	)
 	if err != nil {
 		return nil, err
@@ -273,7 +281,9 @@ func GetAllNotes() ([]Note, error) {
 		var userID sql.NullInt64
 		var pinnedInt int
 		var contentType string
-		err := rows.Scan(&note.ID, &userID, &note.Title, &note.Content, &pinnedInt, &contentType, &note.CreatedAt, &note.UpdatedAt)
+		var location sql.NullString
+		var latitude, longitude sql.NullFloat64
+		err := rows.Scan(&note.ID, &userID, &note.Title, &note.Content, &pinnedInt, &contentType, &location, &latitude, &longitude, &note.CreatedAt, &note.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -285,15 +295,16 @@ func GetAllNotes() ([]Note, error) {
 		note.Pinned = pinnedInt != 0
 		note.ContentType = contentType
 
+		// 位置信息
+		if location.Valid {
+			note.Location = location.String
+		}
+		note.Latitude = latitude.Float64
+		note.Longitude = longitude.Float64
+
 		// 清理 content 和 title 字段（只清理 [object Object] 字符串）
 		note.Content = cleanContent(note.Content)
 		note.Title = cleanContent(note.Title)
-		
-		// 调试日志（只记录前几条）
-		if len(notes) < 3 {
-			log.Printf("[GetAllNotes] 读取 - ID: %d, Title: %q (len: %d), Content: %q (len: %d)", 
-				note.ID, note.Title, len(note.Title), note.Content, len(note.Content))
-		}
 
 		// 获取标签
 		tags, err := GetTagsByNoteID(note.ID)
@@ -735,4 +746,100 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+// UpdateNoteLocation 更新笔记位置
+func UpdateNoteLocation(id int, location string, latitude, longitude float64) error {
+	_, err := database.DB.Exec(
+		"UPDATE notes SET location = ?, latitude = ?, longitude = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		location, latitude, longitude, id,
+	)
+	return err
+}
+
+// GetNotesByLocation 按位置获取笔记
+func GetNotesByLocation(location string) ([]Note, error) {
+	rows, err := database.DB.Query(
+		"SELECT id, user_id, title, content, pinned, content_type, location, latitude, longitude, created_at, updated_at FROM notes WHERE location = ? ORDER BY created_at DESC",
+		location,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notes []Note
+	for rows.Next() {
+		var note Note
+		var userID sql.NullInt64
+		var pinnedInt int
+		var contentType string
+		var loc sql.NullString
+		var latitude, longitude sql.NullFloat64
+		err := rows.Scan(&note.ID, &userID, &note.Title, &note.Content, &pinnedInt, &contentType, &loc, &latitude, &longitude, &note.CreatedAt, &note.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		if userID.Valid {
+			v := int(userID.Int64)
+			note.UserID = &v
+		}
+		note.Pinned = pinnedInt != 0
+		note.ContentType = contentType
+
+		if loc.Valid {
+			note.Location = loc.String
+		}
+		note.Latitude = latitude.Float64
+		note.Longitude = longitude.Float64
+
+		note.Content = cleanContent(note.Content)
+		note.Title = cleanContent(note.Title)
+
+		tags, err := GetTagsByNoteID(note.ID)
+		if err != nil {
+			return nil, err
+		}
+		note.Tags = tags
+
+		resources, err := GetResourcesByNoteID(note.ID)
+		if err != nil {
+			return nil, err
+		}
+		note.Resources = resources
+
+		notes = append(notes, note)
+	}
+
+	return notes, nil
+}
+
+// LocationStat 位置统计
+type LocationStat struct {
+	Location string `json:"location"`
+	Count    int    `json:"count"`
+}
+
+// GetLocationStats 获取所有位置统计
+func GetLocationStats() ([]LocationStat, error) {
+	rows, err := database.DB.Query(
+		"SELECT location, COUNT(*) as cnt FROM notes WHERE location IS NOT NULL AND location != '' GROUP BY location ORDER BY cnt DESC",
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var stats []LocationStat
+	for rows.Next() {
+		var s LocationStat
+		err := rows.Scan(&s.Location, &s.Count)
+		if err != nil {
+			return nil, err
+		}
+		stats = append(stats, s)
+	}
+
+	return stats, nil
 }

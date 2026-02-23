@@ -4,16 +4,12 @@
   import NoteCard from './NoteCard.svelte';
   import TagTree from './TagTree.svelte';
   import SearchBar from './SearchBar.svelte';
-  import AdvancedSearch from './AdvancedSearch.svelte';
-  import ViewModeToggle from './ViewModeToggle.svelte';
-  import ExportDialog from './ExportDialog.svelte';
+  import StatsOverview from './StatsOverview.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
   import { api } from '../utils/api.js';
 
   const dispatch = createEventDispatcher();
-
   export let onQuickEdit = null;
-  export let onDelete = null;
 
   let notes = [];
   let filteredNotes = [];
@@ -21,93 +17,55 @@
   let error = null;
   let searchQuery = '';
   let selectedTags = [];
-  let viewMode = 'waterfall'; // 'waterfall' | 'timeline'
-  let collapsedGroups = new Set();
-  let showAdvancedSearch = false;
-  let showExportDialog = false;
-  let searchHistory = [];
+  let viewMode = 'timeline';
   let selectedNoteIds = new Set();
-  let searchFilters = {
-    keyword: '',
-    tags: [],
-    dateFrom: '',
-    dateTo: ''
-  };
+  let sidebarCollapsed = false;
+  let mobileMenuOpen = false;
+
+  // 响应式侧边栏控制
+  function checkMobile() {
+    if (typeof window !== 'undefined') {
+      mobileMenuOpen = window.innerWidth < 768;
+      sidebarCollapsed = window.innerWidth < 768;
+    }
+  }
+
+  onMount(() => {
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  });
 
   onMount(async () => {
     await loadNotes();
-    // 加载搜索历史
-    const saved = localStorage.getItem('searchHistory');
-    if (saved) {
-      try {
-        searchHistory = JSON.parse(saved);
-      } catch (e) {
-        console.error('加载搜索历史失败:', e);
-      }
-    }
   });
 
   async function loadNotes() {
     try {
       loading = true;
       const data = await api.getNotes();
-      // 确保 notes 始终是数组
       notes = Array.isArray(data) ? data : [];
-      if (!Array.isArray(data)) {
-        console.warn('API 返回的数据不是数组:', data);
-      }
       filterNotes();
       error = null;
     } catch (err) {
       error = err.message || '加载笔记失败';
-      notes = []; // 出错时设置为空数组
+      notes = [];
       filteredNotes = [];
-      console.error('加载笔记失败:', err);
     } finally {
       loading = false;
     }
   }
 
   function filterNotes() {
-    // 确保 notes 是数组
     if (!Array.isArray(notes)) {
-      console.warn('notes 不是数组:', notes);
       filteredNotes = [];
       return;
     }
-    let filtered = [...notes];
+    
+    let filtered = notes;
 
-    // 高级搜索过滤
-    if (searchFilters.keyword) {
-      const query = searchFilters.keyword.toLowerCase();
-      filtered = filtered.filter(note => 
-        (note.title || '').toLowerCase().includes(query) ||
-        (note.content || '').replace(/<[^>]*>/g, '').toLowerCase().includes(query)
-      );
-    }
-
-    // 按标签过滤
-    const tagsToFilter = searchFilters.tags.length > 0 ? searchFilters.tags : selectedTags;
-    if (tagsToFilter.length > 0) {
-      filtered = filtered.filter(note => {
-        const noteTagIds = (note.tags || []).map(t => t.id);
-        return tagsToFilter.some(tagId => noteTagIds.includes(tagId));
-      });
-    }
-
-    // 按日期范围过滤
-    if (searchFilters.dateFrom) {
-      const fromDate = new Date(searchFilters.dateFrom);
-      filtered = filtered.filter(note => new Date(note.created_at) >= fromDate);
-    }
-    if (searchFilters.dateTo) {
-      const toDate = new Date(searchFilters.dateTo);
-      toDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(note => new Date(note.created_at) <= toDate);
-    }
-
-    // 简单搜索（如果高级搜索未使用）
-    if (!searchFilters.keyword && searchQuery.trim()) {
+    // 如果有搜索条件才过滤
+    if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(note => 
         (note.title || '').toLowerCase().includes(query) ||
@@ -115,35 +73,15 @@
       );
     }
 
-    filteredNotes = filtered;
-  }
-
-  function handleAdvancedSearch(e) {
-    const filters = e.detail;
-    searchFilters = filters;
-    
-    // 保存到搜索历史
-    if (filters.keyword || filters.tags.length > 0) {
-      const historyItem = {
-        keyword: filters.keyword,
-        tags: filters.tags,
-        dateFrom: filters.dateFrom,
-        dateTo: filters.dateTo,
-        timestamp: new Date().toISOString()
-      };
-      searchHistory = [historyItem, ...searchHistory.filter(h => 
-        h.keyword !== historyItem.keyword || 
-        JSON.stringify(h.tags) !== JSON.stringify(historyItem.tags)
-      )].slice(0, 10); // 保留最近10条
-      localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+    // 如果有标签筛选才过滤
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(note => {
+        const noteTagIds = (note.tags || []).map(t => t.id);
+        return selectedTags.some(tagId => noteTagIds.includes(tagId));
+      });
     }
-    
-    filterNotes();
-  }
 
-  function handleClearSearch() {
-    searchFilters = { keyword: '', tags: [], dateFrom: '', dateTo: '' };
-    filterNotes();
+    filteredNotes = filtered;
   }
 
   function toggleNoteSelection(noteId) {
@@ -152,44 +90,38 @@
     } else {
       selectedNoteIds.add(noteId);
     }
-    selectedNoteIds = selectedNoteIds; // 触发更新
+    selectedNoteIds = selectedNoteIds;
   }
 
   async function handleBatchDelete() {
     if (selectedNoteIds.size === 0) return;
+    if (!confirm(`确定删除这 ${selectedNoteIds.size} 条笔记吗？`)) return;
     
-    if (!confirm(`确定要删除选中的 ${selectedNoteIds.size} 条笔记吗？`)) {
-      return;
-    }
-
     try {
       await api.deleteNotes(Array.from(selectedNoteIds));
       selectedNoteIds.clear();
       await loadNotes();
-      if (onDelete) onDelete();
     } catch (err) {
-      alert('删除失败: ' + err.message);
+      alert('删除失败');
     }
   }
 
-  function handleSearch(query) {
-    searchQuery = query;
+  function handleSearch(e) {
+    searchQuery = e.detail;
     filterNotes();
   }
 
   function handleTagSelect(tag) {
-    const tagId = tag.id;
-    if (selectedTags.includes(tagId)) {
-      selectedTags = selectedTags.filter(id => id !== tagId);
+    if (selectedTags.includes(tag.id)) {
+      selectedTags = selectedTags.filter(id => id !== tag.id);
     } else {
-      selectedTags = [...selectedTags, tagId];
+      selectedTags = [...selectedTags, tag.id];
     }
     filterNotes();
   }
 
   function handleViewModeChange(mode) {
     viewMode = mode;
-    collapsedGroups.clear();
   }
 
   function handleNoteClick(noteId) {
@@ -197,32 +129,28 @@
   }
 
   function handleNoteDoubleClick(noteId) {
-    if (onQuickEdit) {
-      onQuickEdit(noteId);
-    } else {
-      // 如果没有提供快速编辑函数，则触发普通点击
-      handleNoteClick(noteId);
-    }
+    if (onQuickEdit) onQuickEdit(noteId);
   }
 
-  function handleTagClick(tag, event) {
-    event.stopPropagation();
-    handleTagSelect(tag);
+  function clearFilters() {
+    searchQuery = '';
+    selectedTags = [];
+    filterNotes();
   }
 
-  function toggleGroup(date) {
-    if (collapsedGroups.has(date)) {
-      collapsedGroups.delete(date);
-    } else {
-      collapsedGroups.add(date);
-    }
-    collapsedGroups = collapsedGroups; // 触发更新
-  }
-
-  // 按日期分组（用于timeline模式）
-  $: groupedNotes = (() => {
-    if (viewMode !== 'timeline') return {};
+  function formatGroupDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
+    if (diffDays === 0) return '今天';
+    if (diffDays === 1) return '昨天';
+    if (diffDays < 7) return `${diffDays}天前`;
+    return date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
+  }
+
+  $: groupedNotes = (() => {
     const groups = {};
     filteredNotes.forEach(note => {
       const date = new Date(note.created_at).toLocaleDateString('zh-CN', {
@@ -230,19 +158,11 @@
         month: 'long',
         day: 'numeric'
       });
-      if (!groups[date]) {
-        groups[date] = [];
-      }
+      if (!groups[date]) groups[date] = [];
       groups[date].push(note);
     });
     
-    // 按日期排序（需要按实际日期对象排序）
-    const sortedDates = Object.keys(groups).sort((a, b) => {
-      // 从日期字符串中提取第一个笔记的创建时间
-      const dateA = groups[a][0]?.created_at || '';
-      const dateB = groups[b][0]?.created_at || '';
-      return new Date(dateB) - new Date(dateA);
-    });
+    const sortedDates = Object.keys(groups).sort((a, b) => new Date(b) - new Date(a));
     
     return sortedDates.reduce((acc, key) => {
       acc[key] = groups[key];
@@ -250,165 +170,337 @@
     }, {});
   })();
 
-  $: {
-    filterNotes();
-  }
+  $: activeFilters = (searchQuery.trim() ? 1 : 0) + selectedTags.length;
 </script>
 
-<div class="flex flex-col md:flex-row gap-4">
-  <!-- 左侧边栏 -->
-  <aside class="w-full md:w-64 flex-shrink-0 md:block">
-    <div class="sticky top-24 space-y-4">
-      <div class="hidden md:block">
-        <SearchBar value={searchQuery} on:search={(e) => handleSearch(e.detail)} />
+<div class="flex min-h-screen">
+  <!-- 移动端侧边栏遮罩 -->
+  {#if mobileMenuOpen && !sidebarCollapsed}
+    <div 
+      class="fixed inset-0 bg-black/50 z-30 md:hidden"
+      on:click={() => sidebarCollapsed = true}
+      on:keydown={(e) => e.key === 'Escape' && (sidebarCollapsed = true)}
+      role="button"
+      tabindex="0"
+    ></div>
+  {/if}
+
+  <!-- 侧边栏 -->
+  <aside 
+    class="w-64 flex-shrink-0 border-r bg-card/50 transition-all duration-300 fixed md:relative z-40 h-full {sidebarCollapsed ? 'w-0 md:w-16 -translate-x-full md:translate-x-0' : ''} {mobileMenuOpen ? 'translate-x-0' : ''}"
+  >
+    <div class="sticky top-0 h-screen flex flex-col p-4 overflow-hidden">
+      <!-- Logo / 品牌 -->
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-lg shadow-primary/20 flex-shrink-0">
+          <span class="text-xl">📝</span>
+        </div>
+        {#if !sidebarCollapsed}
+          <span class="font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent whitespace-nowrap">Memo</span>
+        {/if}
       </div>
-      <div class="hidden lg:block">
-        <TagTree {selectedTags} on:tagSelect={(e) => handleTagSelect(e.detail)} />
+
+      <!-- 统计概览 -->
+      {#if !sidebarCollapsed}
+        <div class="mb-4">
+          <StatsOverview />
+        </div>
+      {/if}
+
+      <!-- 搜索栏 -->
+      {#if !sidebarCollapsed}
+        <div class="mb-4">
+          <SearchBar on:search={handleSearch} />
+        </div>
+      {/if}
+
+      <!-- 标签管理 -->
+      {#if !sidebarCollapsed}
+        <div class="flex-1 overflow-y-auto">
+          <TagTree 
+            {selectedTags} 
+            on:tagSelect={handleTagSelect}
+          />
+        </div>
+      {/if}
+
+      <!-- 底部操作 -->
+      <div class="pt-4 border-t">
+        {#if !sidebarCollapsed}
+          <button 
+            class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            on:click={() => sidebarCollapsed = !sidebarCollapsed}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            <span>收起侧边栏</span>
+          </button>
+        {:else}
+          <button 
+            class="w-full flex justify-center py-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            on:click={() => sidebarCollapsed = !sidebarCollapsed}
+            aria-label="展开侧边栏"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        {/if}
       </div>
     </div>
   </aside>
 
   <!-- 主内容区 -->
-  <div class="flex-1 min-w-0">
-    <!-- 移动端搜索栏和标签树 -->
-    <div class="md:hidden mb-4 space-y-3">
-      <SearchBar value={searchQuery} on:search={(e) => handleSearch(e.detail)} />
-      <div class="lg:hidden">
-        <TagTree {selectedTags} on:tagSelect={(e) => handleTagSelect(e.detail)} />
-      </div>
-    </div>
-
-    <!-- 工具栏 -->
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-      <div class="flex items-center gap-3">
-        <ViewModeToggle mode={viewMode} on:change={(e) => handleViewModeChange(e.detail)} />
-        <Button
-          variant="outline"
-          size="sm"
-          on:click={() => showAdvancedSearch = !showAdvancedSearch}
-        >
-          {showAdvancedSearch ? '收起' : '高级搜索'}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          on:click={() => showExportDialog = true}
-        >
-          导出
-        </Button>
-        {#if selectedNoteIds.size > 0}
-          <Button
-            variant="destructive"
-            size="sm"
-            on:click={handleBatchDelete}
+  <main class="flex-1 min-w-0 pb-32">
+    <!-- 顶部栏 -->
+    <div class="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b">
+      <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
+        <!-- 左侧：移动端菜单按钮 + 视图切换 -->
+        <div class="flex items-center gap-2">
+          <!-- 移动端菜单按钮 -->
+          <button
+            class="md:hidden p-2 rounded-lg hover:bg-accent transition-colors"
+            on:click={() => sidebarCollapsed = !sidebarCollapsed}
+            aria-label="打开菜单"
           >
-            删除选中 ({selectedNoteIds.size})
-          </Button>
-        {/if}
-      </div>
-      <div class="text-sm text-muted-foreground">
-        共 {filteredNotes.length} 条笔记
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          
+          <!-- 视图切换 -->
+          <div class="flex items-center gap-1 bg-secondary/50 rounded-full p-0.5 sm:p-1">
+            <button
+              class="px-2 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all"
+              class:bg-primary={viewMode === 'timeline'}
+              class:text-primary-foreground={viewMode === 'timeline'}
+              class:text-muted-foreground={viewMode !== 'timeline'}
+              on:click={() => handleViewModeChange('timeline')}
+            >
+              <span class="hidden sm:inline">信息流</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sm:hidden inline">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            </button>
+            <button
+              class="px-2 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all"
+              class:bg-primary={viewMode === 'waterfall'}
+              class:text-primary-foreground={viewMode === 'waterfall'}
+              class:text-muted-foreground={viewMode !== 'waterfall'}
+              on:click={() => handleViewModeChange('waterfall')}
+            >
+              <span class="hidden sm:inline">卡片</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sm:hidden inline">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            </button>
+        </div>
+
+        <!-- 右侧操作 -->
+        <div class="flex items-center gap-3">
+          {#if activeFilters > 0}
+            <span class="text-sm text-muted-foreground">
+              {filteredNotes.length} 条结果
+            </span>
+            <Button variant="ghost" size="sm" on:click={clearFilters}>
+              清除筛选
+            </Button>
+          {:else}
+            <span class="text-sm text-muted-foreground">
+              {filteredNotes.length} 条笔记
+            </span>
+          {/if}
+
+          {#if selectedNoteIds.size > 0}
+            <span class="text-sm text-primary font-medium">
+              已选 {selectedNoteIds.size}
+            </span>
+            <Button variant="destructive" size="sm" on:click={handleBatchDelete}>
+              删除
+            </Button>
+          {/if}
+        </div>
       </div>
     </div>
 
-    <!-- 高级搜索 -->
-    <AdvancedSearch
-      visible={showAdvancedSearch}
-      {searchHistory}
-      on:search={handleAdvancedSearch}
-      on:clear={handleClearSearch}
-      on:close={() => showAdvancedSearch = false}
-    />
-
-    <!-- 导出对话框 -->
-    <ExportDialog
-      visible={showExportDialog}
-      selectedNotes={Array.from(selectedNoteIds).map(id => notes.find(n => n.id === id)).filter(Boolean)}
-      on:close={() => showExportDialog = false}
-      on:exported={() => {
-        selectedNoteIds.clear();
-      }}
-    />
-
-    {#if loading}
-      <div class="text-center py-12 text-muted-foreground">加载中...</div>
-    {:else if error}
-      <div class="text-center py-12 text-destructive">错误: {error}</div>
-    {:else if filteredNotes.length === 0}
-      <div class="text-center py-12 text-muted-foreground">
-        <p>没有找到笔记</p>
-      </div>
-    {:else if viewMode === 'waterfall'}
-      <!-- 瀑布流模式 -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {#each filteredNotes as note (note.id)}
-          <div class="relative">
-            {#if selectedNoteIds.has(note.id)}
-              <div class="absolute top-2 right-2 z-10 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs">
-                ✓
+    <!-- 内容区 -->
+    <div class="px-6 py-6">
+      <!-- 加载状态 -->
+      {#if loading}
+        <div class="space-y-8">
+          {#each Array(3) as _, i}
+            <div class="animate-pulse">
+              <div class="h-6 w-20 sm:w-24 bg-muted rounded-full mb-4"></div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="h-36 sm:h-40 bg-muted/50 rounded-2xl"></div>
+                <div class="h-36 sm:h-40 bg-muted/50 rounded-2xl hidden sm:block"></div>
               </div>
-            {/if}
-            <NoteCard 
-              {note} 
-              on:click={() => handleNoteClick(note.id)}
-              on:doubleClick={() => handleNoteDoubleClick(note.id)}
-              on:tagClick={(e) => handleTagClick(e.detail.tag, e.detail.event)}
-            />
-            <input
-              type="checkbox"
-              class="absolute top-2 left-2 z-10"
-              checked={selectedNoteIds.has(note.id)}
-              on:change={() => toggleNoteSelection(note.id)}
-              on:click|stopPropagation
-            />
-          </div>
-        {/each}
-      </div>
-    {:else}
-      <!-- Timeline 模式 -->
-      <div class="space-y-6">
-        {#each Object.entries(groupedNotes) as [date, dateNotes]}
-          <div class="border-l-2 border-primary/20 pl-4">
-            <div 
-              class="flex items-center gap-2 mb-4 cursor-pointer hover:text-primary transition-colors"
-              role="button"
-              tabindex="0"
-              on:click={() => toggleGroup(date)}
-              on:keydown={(e) => e.key === 'Enter' && toggleGroup(date)}
-            >
-              <span class="text-xs">{collapsedGroups.has(date) ? '▶' : '▼'}</span>
-              <h3 class="text-lg font-semibold">{date}</h3>
-              <span class="text-xs text-muted-foreground">({dateNotes.length})</span>
             </div>
-            {#if !collapsedGroups.has(date)}
-              <div class="space-y-3 ml-6">
-                {#each dateNotes as note (note.id)}
-                  <div class="relative">
-                    {#if selectedNoteIds.has(note.id)}
-                      <div class="absolute top-2 right-2 z-10 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs">
-                        ✓
-                      </div>
-                    {/if}
-                    <NoteCard 
-                      {note} 
-                      on:click={() => handleNoteClick(note.id)}
-                      on:doubleClick={() => handleNoteDoubleClick(note.id)}
-                      on:tagClick={(e) => handleTagClick(e.detail.tag, e.detail.event)}
-                    />
-                    <input
-                      type="checkbox"
-                      class="absolute top-2 left-2 z-10"
-                      checked={selectedNoteIds.has(note.id)}
-                      on:change={() => toggleNoteSelection(note.id)}
-                      on:click|stopPropagation
-                    />
-                  </div>
-                {/each}
-              </div>
-            {/if}
+          {/each}
+        </div>
+
+      <!-- 错误状态 -->
+      {:else if error}
+        <div class="flex flex-col items-center justify-center py-20 text-center">
+          <div class="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-destructive">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
           </div>
-        {/each}
-      </div>
-    {/if}
-  </div>
+          <h3 class="text-lg font-semibold mb-2">加载失败</h3>
+          <p class="text-muted-foreground mb-4">{error}</p>
+          <Button on:click={loadNotes}>重试</Button>
+        </div>
+
+      <!-- 空状态 -->
+      {:else if filteredNotes.length === 0}
+        <div class="flex flex-col items-center justify-center py-16 sm:py-20 text-center animate-fade-in">
+          <!-- 动态插图 - 使用emoji动画 -->
+          <div class="relative mb-8">
+            <div class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-primary/10 to-primary/5 rounded-full flex items-center justify-center animate-pulse">
+              <span class="text-5xl sm:text-6xl">✨</span>
+            </div>
+            <!-- 浮动装饰 -->
+            <div class="absolute -top-2 -right-2 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center animate-bounce" style="animation-delay: 0.2s">
+              <span class="text-lg">💡</span>
+            </div>
+            <div class="absolute -bottom-1 -left-1 w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center animate-bounce" style="animation-delay: 0.4s">
+              <span class="text-sm">📝</span>
+            </div>
+          </div>
+          
+          <h3 class="text-xl sm:text-2xl font-bold mb-3 bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
+            {activeFilters > 0 ? '没有找到匹配的笔记' : '开始记录灵感'}
+          </h3>
+          <p class="text-muted-foreground mb-8 max-w-sm mx-auto">
+            {activeFilters > 0 ? '试试调整筛选条件，或者记录一条新笔记' : '点击底部的 ✏️ 按钮，记录你的第一条灵感'}
+          </p>
+          
+          {#if activeFilters > 0}
+            <Button on:click={clearFilters} class="mb-4">
+              清除筛选条件
+            </Button>
+          {:else}
+            <div class="flex flex-wrap justify-center gap-4 sm:gap-6 text-sm text-muted-foreground">
+              <span class="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg">
+                <kbd class="px-2 py-0.5 bg-background rounded text-xs shadow-sm">#</kbd>
+                添加标签
+              </span>
+              <span class="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg">
+                <kbd class="px-2 py-0.5 bg-background rounded text-xs shadow-sm">/</kbd>
+                快速搜索
+              </span>
+              <span class="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg">
+                <kbd class="px-2 py-0.5 bg-background rounded text-xs shadow-sm">⌘N</kbd>
+                新建笔记
+              </span>
+            </div>
+          {/if}
+        </div>
+
+      <!-- 笔记列表 -->
+      {:else}
+        <!-- 时间线视图 -->
+        {#if viewMode === 'timeline'}
+          <div class="space-y-1">
+            {#each Object.entries(groupedNotes) as [date, dateNotes], index}
+              <div class="animate-fade-in" style="animation-delay: {index * 80}ms">
+                <!-- 日期标题 -->
+                <div class="flex items-center gap-4 mb-6 mt-8 first:mt-0">
+                  <div class="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
+                  <div class="flex items-center gap-2 px-4 py-1.5 bg-primary/5 rounded-full">
+                    <span class="text-sm font-medium text-primary">{formatGroupDate(date)}</span>
+                    <span class="text-xs text-muted-foreground">({dateNotes.length})</span>
+                  </div>
+                  <div class="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
+                </div>
+
+                <!-- 笔记卡片流 -->
+                <div class="space-y-3">
+                  {#each dateNotes as note, noteIndex (note.id)}
+                    <div 
+                      class="group relative animate-slide-up"
+                      style="animation-delay: {noteIndex * 40}ms"
+                    >
+                      <!-- 选择指示器 -->
+                      <button 
+                        type="button"
+                        class="absolute -left-3 top-4 w-8 h-8 rounded-full border-2 border-border bg-card flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-sm"
+                        class:opacity-100={selectedNoteIds.has(note.id)}
+                        class:bg-primary={selectedNoteIds.has(note.id)}
+                        class:border-primary={selectedNoteIds.has(note.id)}
+                        on:click|stopPropagation={() => toggleNoteSelection(note.id)}
+                        aria-label={selectedNoteIds.has(note.id) ? '取消选择' : '选择笔记'}
+                      >
+                        {#if selectedNoteIds.has(note.id)}
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-primary-foreground">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                          </svg>
+                        {/if}
+                      </button>
+
+                      <div class="pl-8">
+                        <NoteCard 
+                          {note} 
+                          on:click={() => handleNoteClick(note.id)}
+                          on:doubleClick={() => handleNoteDoubleClick(note.id)}
+                        />
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+
+        <!-- 瀑布流视图 -->
+        {:else}
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {#each filteredNotes as note, index (note.id)}
+              <div 
+                class="relative group animate-fade-in"
+                style="animation-delay: {index * 30}ms"
+              >
+                <!-- 选择指示器 -->
+                <button 
+                  type="button"
+                  class="absolute -left-2 top-2 w-6 h-6 rounded-full border-2 border-border bg-card flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+                  class:opacity-100={selectedNoteIds.has(note.id)}
+                  class:bg-primary={selectedNoteIds.has(note.id)}
+                  class:border-primary={selectedNoteIds.has(note.id)}
+                  on:click|stopPropagation={() => toggleNoteSelection(note.id)}
+                  aria-label={selectedNoteIds.has(note.id) ? '取消选择' : '选择笔记'}
+                >
+                  {#if selectedNoteIds.has(note.id)}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-primary-foreground">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  {/if}
+                </button>
+
+                <NoteCard 
+                  {note} 
+                  on:click={() => handleNoteClick(note.id)}
+                  on:doubleClick={() => handleNoteDoubleClick(note.id)}
+                />
+              </div>
+            {/each}
+          </div>
+        {/if}
+      {/if}
+    </div>
+  </main>
 </div>

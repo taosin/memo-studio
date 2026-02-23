@@ -125,13 +125,10 @@ func UploadResource(c *gin.Context) {
 	)
 
 	ext := strings.ToLower(filepath.Ext(fh.Filename))
-	name := strings.TrimSuffix(fh.Filename, filepath.Ext(fh.Filename))
-	name = strings.TrimSpace(name)
-	if name == "" {
-		name = "upload"
-	}
-	safeName := sanitizeFilename(name)
-	filename := safeName + "_" + randomHex(8) + ext
+	// Use timestamp + random for filename to avoid conflicts
+	timestamp := now.UnixMilli()
+	randomStr := randomHex(8)
+	filename := strconv.FormatInt(timestamp, 10) + "_" + randomStr + ext
 
 	relPath := filepath.ToSlash(filepath.Join(userSeg, dateSeg, filename))
 	dst := filepath.Join(storageBaseDir(), filepath.FromSlash(relPath))
