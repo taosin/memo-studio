@@ -157,6 +157,9 @@ func main() {
 			api.POST("/summarize", handlers.SummarizeNote)
 			api.POST("/summarize/batch", handlers.BatchSummarize)
 
+			// AI 辅助（润色、续写、摘要等）
+			api.POST("/ai/assist", handlers.AIAssist)
+
 			// 大模型管理
 			api.GET("/models", handlers.GetModels)
 			api.GET("/models/cloud", handlers.GetCloudModels)
@@ -256,6 +259,9 @@ func main() {
 		legacy.POST("/insights", handlers.GetInsight)
 		legacy.POST("/summarize", handlers.SummarizeNote)
 		legacy.POST("/summarize/batch", handlers.BatchSummarize)
+
+		// AI 辅助（润色、续写、摘要等）
+		legacy.POST("/ai/assist", handlers.AIAssist)
 
 		// 位置管理
 		legacy.PUT("/memos/:id/location", handlers.UpdateNoteLocation)

@@ -16,6 +16,7 @@
   import LoadingState from "$lib/components/LoadingState.svelte";
   import KeyboardHelp from "$lib/components/KeyboardHelp.svelte";
   import SearchBar from "$lib/components/SearchBar.svelte";
+  import EnhancedEditor from "$lib/components/EnhancedEditor.svelte";
 
   let input = "";
   let baseNotes = [];
@@ -524,111 +525,55 @@
     </div>
 
     <div class="composer">
-      <div class="inputWrapper">
-        <textarea
-          class="input"
-          bind:value={input}
-          rows="3"
-          placeholder="现在的想法是..."
-          bind:this={inputEl}
-          on:input={() => {
-            // 本地草稿保存（debounce）
-            clearTimeout(draftTimer);
-            draftTimer = setTimeout(() => {
-              try {
-                localStorage.setItem("memo_draft_v1", String(input || ""));
-              } catch {}
-            }, 250);
-          }}
-          on:keydown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit();
-          }}
-          on:paste={handlePaste}
-          on:drop={handleDrop}
-          on:dragover={handleDragOver}
-        ></textarea>
-        <div class="inputToolbar">
-          <div class="toolbarLeft">
-            <button
-              class="toolBtn"
-              on:click={() => { input = (input || '') + '#'; inputEl?.focus(); }}
-              title="添加标签"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="4" y1="9" x2="20" y2="9"></line>
-                <line x1="4" y1="15" x2="20" y2="15"></line>
-                <line x1="10" y1="3" x2="8" y2="21"></line>
-                <line x1="16" y1="3" x2="14" y2="21"></line>
-              </svg>
-            </button>
-            <button
-              class="toolBtn"
-              on:click={() => document.getElementById('imageUpload')?.click()}
-              title="上传图片"
-              disabled={uploadLoading}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                <polyline points="21 15 16 10 5 21"></polyline>
-              </svg>
-            </button>
-            <input
-              id="imageUpload"
-              type="file"
-              accept="image/*"
-              style="display: none;"
-              on:change={async (e) => {
-                const file = e.target?.files?.[0];
-                if (file) {
-                  const md = await uploadImage(file);
-                  if (md) {
-                    input = (input || '') + '\n' + md;
-                  }
-                  e.target.value = '';
-                }
-              }}
-            />
-            <button
-              class="toolBtn"
-              on:click={() => { input = (input || '') + '**粗体**'; inputEl?.focus(); }}
-              title="粗体"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
-                <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
-              </svg>
-            </button>
-            <button
-              class="toolBtn"
-              on:click={() => { input = (input || '') + '\n- '; inputEl?.focus(); }}
-              title="列表"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="8" y1="6" x2="21" y2="6"></line>
-                <line x1="8" y1="12" x2="21" y2="12"></line>
-                <line x1="8" y1="18" x2="21" y2="18"></line>
-                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                <line x1="3" y1="18" x2="3.01" y2="18"></line>
-              </svg>
-            </button>
-            {#if uploadLoading}
-              <span class="uploadingText">图片上传中...</span>
-            {/if}
-          </div>
-          <button
-            class="sendBtn"
-            on:click={submit}
-            disabled={loading || uploadLoading || !input?.trim()}
-            title="发送 (Ctrl+Enter)"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
-        </div>
+      <EnhancedEditor
+        bind:value={input}
+        bind:this={inputEl}
+        placeholder="现在的想法是..."
+        disabled={loading}
+        {uploadLoading}
+        on:submit={submit}
+        on:input={() => {
+          // 本地草稿保存（debounce）
+          clearTimeout(draftTimer);
+          draftTimer = setTimeout(() => {
+            try {
+              localStorage.setItem("memo_draft_v1", String(input || ""));
+            } catch {}
+          }, 250);
+        }}
+        on:paste={handlePaste}
+        on:drop={handleDrop}
+        on:dragover={handleDragOver}
+      />
+      <input
+        id="imageUpload"
+        type="file"
+        accept="image/*"
+        style="display: none;"
+        on:change={async (e) => {
+          const file = e.target?.files?.[0];
+          if (file) {
+            const md = await uploadImage(file);
+            if (md) {
+              input = (input || '') + '\n' + md;
+            }
+            e.target.value = '';
+          }
+        }}
+      />
+      <div class="composerFooter">
+        <button
+          class="sendBtn"
+          on:click={submit}
+          disabled={loading || uploadLoading || !input?.trim()}
+          title="发送 (Ctrl+Enter)"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+          <span>发送</span>
+        </button>
       </div>
     </div>
 
@@ -1048,6 +993,24 @@
 
   .composer {
     margin-bottom: 16px;
+  }
+  .composerFooter {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+  .composerFooter .sendBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    width: auto;
+    height: auto;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .composerFooter .sendBtn span {
+    display: inline;
   }
   .inputWrapper {
     border: 1px solid var(--border-2);

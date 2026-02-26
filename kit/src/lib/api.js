@@ -282,4 +282,12 @@ export const api = {
       body: JSON.stringify({ notes: notes || [] }),
     });
   },
+  // AI 辅助功能
+  async aiAssist(action, content) {
+    requireToken();
+    return jsonFetch("/ai/assist", {
+      method: "POST",
+      body: JSON.stringify({ action, content }),
+    });
+  },
 };
