@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "svelte": "^5.53.7",
+    "svelte": "^5.53.12",
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.0"
   },
