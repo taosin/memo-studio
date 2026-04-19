@@ -12,7 +12,7 @@
     "@sveltejs/adapter-static": "^3.0.0",
     "@sveltejs/kit": "^2.57.1",
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
-    "svelte": "^5.55.3",
+    "svelte": "^5.55.4",
     "vite": "^5.4.21"
   }
 }
