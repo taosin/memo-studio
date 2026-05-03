@@ -6,7 +6,7 @@ require (
 	github.com/gin-contrib/cors v1.7.7
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/mattn/go-sqlite3 v1.14.42
+	github.com/mattn/go-sqlite3 v1.14.44
 	golang.org/x/crypto v0.50.0
 )
 
