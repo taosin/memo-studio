@@ -41,7 +41,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: "kit/.nvmrc"
           cache: "npm"
           cache-dependency-path: "kit/package-lock.json"
 
@@ -57,3 +57,5 @@ jobs:
         working-directory: kit
         run: npm run build
 
+      - name: Build production image
+        run: docker build -t memo-studio:ci .

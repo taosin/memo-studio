@@ -1,5 +1,5 @@
 ### Build SvelteKit static
-FROM node:20-bookworm AS kit-builder
+FROM node:24.22.2-bookworm AS kit-builder
 WORKDIR /app
 # 更新系统包以修复安全漏洞
 RUN apt-get update && \
