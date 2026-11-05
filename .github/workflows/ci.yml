@@ -67,9 +67,10 @@ jobs:
       - name: Exercise the production SPA in Chrome
         run: |
           export MEMO_ADMIN_PASSWORD="$(openssl rand -hex 24)"
-          docker run -d --name smoke -p 127.0.0.1:9000:9000 -e MEMO_ADMIN_PASSWORD memo-studio:ci
+          export MEMO_JWT_SECRET="$(openssl rand -hex 32)"
+          docker run -d --name smoke -p 127.0.0.1:9000:9000 -e MEMO_ADMIN_PASSWORD -e MEMO_JWT_SECRET memo-studio:ci
           trap 'docker rm -fv smoke' EXIT
-          curl --retry 20 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:9000/health
+          curl --retry 20 --retry-all-errors --retry-delay 1 -fsS http://127.0.0.1:9000/health
           python3 -m venv "$RUNNER_TEMP/smoke-env"
           "$RUNNER_TEMP/smoke-env/bin/pip" -q install playwright==1.56.0
           "$RUNNER_TEMP/smoke-env/bin/python" scripts/smoke-kit.py
