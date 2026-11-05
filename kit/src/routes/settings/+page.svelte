@@ -1,5 +1,5 @@
 <script>
-  import { theme, applyTheme } from "$lib/theme.js";
+  import { theme, applyTheme } from "#lib/theme.js";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
 

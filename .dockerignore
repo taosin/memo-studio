@@ -11,3 +11,6 @@ backend/storage
 .env
 .env.local
 .env.*
+
+# The production SPA is copied from kit-builder.
+backend/public
