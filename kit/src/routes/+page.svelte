@@ -1,21 +1,21 @@
 <script>
   import { onDestroy, onMount } from "svelte";
-  import { api } from "$lib/api.js";
-  import { buildHeatmap, heatColor } from "$lib/heatmap.js";
+  import { api } from "#lib/api.js";
+  import { buildHeatmap, heatColor } from "#lib/heatmap.js";
   import {
     notesStore,
     tagsStore,
     showToast,
     requireAuth,
-  } from "$lib/stores.js";
-  import { keyboardManager } from "$lib/keyboardManager.js";
+  } from "#lib/stores.js";
+  import { keyboardManager } from "#lib/keyboardManager.js";
   import { goto } from "$app/navigation";
 
   // 导入新组件
-  import Toast from "$lib/components/Toast.svelte";
-  import LoadingState from "$lib/components/LoadingState.svelte";
-  import KeyboardHelp from "$lib/components/KeyboardHelp.svelte";
-  import SearchBar from "$lib/components/SearchBar.svelte";
+  import Toast from "#lib/components/Toast.svelte";
+  import LoadingState from "#lib/components/LoadingState.svelte";
+  import KeyboardHelp from "#lib/components/KeyboardHelp.svelte";
+  import SearchBar from "#lib/components/SearchBar.svelte";
 
   let input = "";
   let baseNotes = [];
