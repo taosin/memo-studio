@@ -12,7 +12,7 @@ COPY kit ./kit
 RUN cd kit && npm run build
 
 ### Build Go binary (CGO + sqlite_fts5)
-FROM golang:1.23-bookworm AS go-builder
+FROM golang:1.26-bookworm AS go-builder
 WORKDIR /app
 
 # 设置 Go 环境变量（优化下载和缓存）
