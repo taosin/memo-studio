@@ -435,7 +435,7 @@
         <span class="navIcon">🧠</span>
         <span class="navText">AI 洞察</span>
       </button>
-      <button class="navItem" on:click={openReview}>
+      <button class="navItem" on:click={randomReview}>
         <span class="navIcon">✈️</span>
         <span class="navText">每日回顾</span>
       </button>
