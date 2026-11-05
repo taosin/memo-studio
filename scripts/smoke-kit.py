@@ -22,6 +22,8 @@ with sync_playwright() as pw:
     page.goto("/notebooks")
     page.reload()
     expect(page).to_have_url("http://127.0.0.1:9000/notebooks")
+    expect(page.get_by_role("button", name="新建笔记本")).to_be_visible()
+    assert page.request.get("/_app/missing.js").status == 404
     page.goto("/resources")
     with page.expect_response(lambda r: r.url.endswith("/api/resources") and r.request.method == "POST") as uploaded:
         page.locator('input[type=file]').set_input_files({"name": "probe.txt", "mimeType": "text/plain", "buffer": b"smoke"})
