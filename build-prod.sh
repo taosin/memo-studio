@@ -12,7 +12,7 @@ cd "$SCRIPT_DIR"
 
 echo -e "${BLUE}🏗️  构建前端（SvelteKit 静态）...${NC}"
 command -v npm >/dev/null 2>&1 || { echo "need npm"; exit 1; }
-(cd kit && npm install && npm run build)
+(cd kit && npm ci && npm run build)
 
 echo -e "${BLUE}📦 同步前端产物到 backend/public ...${NC}"
 mkdir -p backend/public
