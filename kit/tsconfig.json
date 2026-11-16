@@ -1,0 +1,5 @@
+{
+  "extends": "$app/tsconfig",
+  "compilerOptions": { "checkJs": false },
+  "include": ["src", "vite.config.js", ".svelte-kit/types"]
+}

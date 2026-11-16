@@ -1,8 +1,8 @@
 <script>
-  import { api } from "$lib/api.js";
+  import { api } from "#lib/api.js";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { requireAuth } from '$lib/stores.js';
+  import { requireAuth } from '#lib/stores.js';
 
   let users = [];
   let loading = false;

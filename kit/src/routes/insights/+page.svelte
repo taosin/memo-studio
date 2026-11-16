@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { api } from '$lib/api.js';
+  import { api } from '#lib/api.js';
   import { goto } from '$app/navigation';
 
   let loading = false;

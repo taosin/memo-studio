@@ -1,8 +1,8 @@
 <script>
   import { onMount } from "svelte";
   import { afterNavigate, goto } from "$app/navigation";
-  import { theme, applyTheme, toggleTheme } from "$lib/theme.js";
-  import { api } from "$lib/api.js";
+  import { theme, applyTheme, toggleTheme } from "#lib/theme.js";
+  import { api } from "#lib/api.js";
 
   let current = "dark";
   let authed = false;

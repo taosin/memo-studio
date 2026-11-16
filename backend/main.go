@@ -298,19 +298,19 @@ func main() {
 		}
 
 		clean := strings.TrimPrefix(path.Clean("/"+p), "/")
-		if clean == "" || clean == "." {
-			clean = "index.html"
+		if clean != "" && clean != "." && clean != "index.html" {
+			if info, err := fs.Stat(staticFS, clean); err == nil && !info.IsDir() {
+				fileServer.ServeHTTP(c.Writer, c.Request)
+				return
+			}
+			if strings.HasPrefix(clean, "_app/") || path.Ext(clean) != "" {
+				c.Status(http.StatusNotFound)
+				return
+			}
 		}
 
-		if f, err := staticFS.Open(clean); err == nil {
-			_ = f.Close()
-			c.Request.URL.Path = "/" + clean
-			fileServer.ServeHTTP(c.Writer, c.Request)
-			c.Abort()
-			return
-		}
-
-		c.Request.URL.Path = "/index.html"
+		// Serve the index at the requested SPA URL; FileServer redirects /index.html.
+		c.Request.URL.Path = "/"
 		fileServer.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
 	})

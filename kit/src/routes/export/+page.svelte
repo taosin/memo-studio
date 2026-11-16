@@ -1,8 +1,8 @@
 <script>
-  import { api } from "$lib/api.js";
+  import { api } from "#lib/api.js";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
-  import { requireAuth } from '$lib/stores.js';
+  import { requireAuth } from '#lib/stores.js';
 
   let format = "json";
   let limit = 500;
